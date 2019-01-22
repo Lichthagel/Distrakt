@@ -1,0 +1,15 @@
+use std::fs;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DistraktConfig {
+    pub discord_token: String,
+    pub trakt_id: String,
+    pub trakt_secret: String,
+}
+
+impl DistraktConfig {
+    pub fn load() -> Self {
+        serde_json::from_reader(fs::File::open("config.json").expect("couldn't load config file"))
+            .expect("Couldn't load config")
+    }
+}

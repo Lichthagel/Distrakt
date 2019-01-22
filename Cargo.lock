@@ -208,6 +208,9 @@ dependencies = [
 name = "distrakt"
 version = "0.1.0"
 dependencies = [
+ "serde 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "serenity 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust)",
 ]
