@@ -1,0 +1,10 @@
+[package]
+name = "distrakt"
+version = "0.1.0"
+authors = ["Jens Gatzweiler <lichthagel@tuta.io>"]
+edition = "2018"
+
+[dependencies]
+# change when released
+trakt = { git = "https://github.com/Lichthagel/trakt-rust" }
+serenity = "0.5.11"
