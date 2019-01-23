@@ -11,9 +11,9 @@ use crate::{
     distrakt_trakt::Trakt,
 };
 use serenity::{
-    client::{Context, EventHandler},
     framework::StandardFramework,
-    model::{channel::Message, gateway::Ready, id::UserId},
+    model::prelude::{channel::Message, gateway::Game, gateway::Ready, id::UserId},
+    prelude::{Context, EventHandler},
     Client,
 };
 
@@ -26,7 +26,8 @@ impl EventHandler for Handler {
         }
     }
 
-    fn ready(&self, _: Context, ready: Ready) {
+    fn ready(&self, ctx: Context, ready: Ready) {
+        ctx.set_game(Game::listening("+login"));
         println!("connected to {} guilds", ready.guilds.len());
     }
 }
