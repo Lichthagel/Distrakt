@@ -5,7 +5,11 @@ mod commands;
 mod config;
 mod distrakt_trakt;
 
-use crate::{commands::owner::Shutdown, config::DistraktConfig, distrakt_trakt::Trakt};
+use crate::{
+    commands::{auth::Login, owner::Shutdown},
+    config::DistraktConfig,
+    distrakt_trakt::Trakt,
+};
 use serenity::{
     client::{Context, EventHandler},
     framework::StandardFramework,
@@ -43,7 +47,8 @@ fn main() {
                 c.owners_only(true)
                     .cmd(Shutdown)
                     .before(|_, msg| msg.reply("shutting down").is_ok())
-            }),
+            })
+            .command("login", |c| c.cmd(Login)),
     );
 
     {
