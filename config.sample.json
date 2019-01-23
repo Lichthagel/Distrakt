@@ -1,5 +1,6 @@
 {
   "discord_token": "",
   "trakt_id": "",
-  "trakt_secret": ""
+  "trakt_secret": "",
+  "owners": []
 }
