@@ -41,7 +41,7 @@ fn main() {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| {
-                c.prefix("+")
+                c.prefix(conf.prefix.as_str())
                     .owners(conf.owners.iter().map(|i| UserId(i.clone())).collect())
             })
             .command("shutdown", |c| {
