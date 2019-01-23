@@ -15,6 +15,8 @@ impl Command for Login {
     fn execute(&self, ctx: &mut Context, msg: &Message, _args: Args) -> Result<(), CommandError> {
         let data = ctx.data.lock();
 
+        // TODO use futures
+
         let api = data
             .get::<Trakt>()
             .ok_or(CommandError("Couldn't extract api".to_owned()))?;
@@ -22,19 +24,23 @@ impl Command for Login {
         // TODO check if already logged in
 
         let poll_until = Utc::now();
-        let code = api
-            .devices_authenticate()
-            .map_err(|e| e.to_string())?;
+        let code = api.devices_authenticate().map_err(|e| e.to_string())?;
 
         let poll_until: DateTime<Utc> = poll_until + Duration::seconds(code.expires_in as i64);
 
         msg.author.direct_message(|m| {
-            m.content(format!(
-                "Go to {} and enter code {} (expires at {})",
-                code.verification_url,
-                code.user_code,
-                poll_until.format("%H:%M:%S UTC")
-            ))
+            m.embed(|e| {
+                e.title("Login")
+                    .url(&code.verification_url)
+                    .description(format!(
+                        "Go to {} and enter this code",
+                        &code.verification_url
+                    ))
+                    .field("Code", &code.user_code, true)
+                    .field("Expires at", poll_until.format("%H:%M:%S UTC"), true)
+                    .timestamp(&poll_until)
+                    .color((237u8, 28u8, 36u8))
+            })
         })?;
 
         let mut tokens = None;
@@ -76,8 +82,13 @@ impl Command for Login {
 
         // TODO save tokens
 
-        msg.author
-            .direct_message(|m| m.content("Successfully logged in"))?;
+        msg.author.direct_message(|m| {
+            m.embed(|e| {
+                e.title("Success")
+                    .description("You are now logged in. Have fun!")
+                    .color((237u8, 28u8, 36u8))
+            })
+        })?;
 
         Ok(())
     }
