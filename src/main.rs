@@ -3,8 +3,9 @@ extern crate serde_derive;
 
 mod commands;
 mod config;
+mod distrakt_trakt;
 
-use crate::{commands::owner::Shutdown, config::DistraktConfig};
+use crate::{commands::owner::Shutdown, config::DistraktConfig, distrakt_trakt::Trakt};
 use serenity::{
     client::{Context, EventHandler},
     framework::StandardFramework,
@@ -36,7 +37,7 @@ fn main() {
         StandardFramework::new()
             .configure(|c| {
                 c.prefix("+")
-                    .owners(conf.owners.into_iter().map(|i| UserId(i)).collect())
+                    .owners(conf.owners.iter().map(|i| UserId(i.clone())).collect())
             })
             .command("shutdown", |c| {
                 c.owners_only(true)
@@ -44,6 +45,14 @@ fn main() {
                     .before(|_, msg| msg.reply("shutting down").is_ok())
             }),
     );
+
+    {
+        let api = Trakt::new(conf.trakt_id, Some(conf.trakt_secret));
+
+        let mut data = client.data.lock();
+
+        data.insert::<Trakt>(api);
+    }
 
     client.start().expect("couldn't start bot");
 }

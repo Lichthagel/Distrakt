@@ -212,7 +212,8 @@ dependencies = [
  "serde_derive 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "serenity 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust)",
+ "trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust?rev=5ab6d41)",
+ "typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1356,7 +1357,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "trakt"
 version = "0.1.0"
-source = "git+https://github.com/Lichthagel/trakt-rust#2e7ad663ca2f6f99afa14e8445d2a26c501fdd4b"
+source = "git+https://github.com/Lichthagel/trakt-rust?rev=5ab6d41#5ab6d41b82c53df97653e6bf16e6dae3e07dd703"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1675,7 +1676,7 @@ dependencies = [
 "checksum tokio-threadpool 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "17465013014410310f9f61fa10bf4724803c149ea1d51efece131c38efca93aa"
 "checksum tokio-timer 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "4f37f0111d76cc5da132fe9bc0590b9b9cfd079bc7e75ac3846278430a299ff8"
 "checksum traitobject 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "efd1f82c56340fdf16f2a953d7bda4f8fdffba13d93b00844c25572110b26079"
-"checksum trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust)" = "<none>"
+"checksum trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust?rev=5ab6d41)" = "<none>"
 "checksum try-lock 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 "checksum typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1410f6f91f21d1612654e7cc69193b0334f909dcf2c790c4826254fbb86f8887"
 "checksum typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "653be63c80a3296da5551e1bfd2cca35227e13cdd08c6668903ae2f4f77aa1f6"
