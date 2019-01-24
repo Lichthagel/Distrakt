@@ -14,3 +14,4 @@ serde_derive = "1.0.85"
 typemap = "0.3.3"
 chrono = "0.4.6"
 time = "0.1.42"
+diesel = { version = "1.4.0", features = ["sqlite"] }

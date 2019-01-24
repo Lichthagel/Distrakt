@@ -2,3 +2,6 @@
 **/*.rs.bk
 .idea
 config.json
+.env
+sqlite
+distrakt.db

@@ -3,19 +3,16 @@ extern crate serde_derive;
 
 mod commands;
 mod config;
-mod distrakt_trakt;
+mod wrappers;
 
 use crate::{
     commands::{auth::Login, owner::Shutdown},
     config::DistraktConfig,
-    distrakt_trakt::Trakt,
+    wrappers::{Sqlite, Trakt},
 };
-use serenity::{
-    framework::StandardFramework,
-    model::prelude::{channel::Message, gateway::Game, gateway::Ready, id::UserId},
-    prelude::{Context, EventHandler},
-    Client,
-};
+use diesel::prelude::*;
+use serenity::{framework::StandardFramework, model::prelude::*, prelude::*, Client};
+use std::env;
 
 struct Handler;
 
@@ -58,6 +55,17 @@ fn main() {
         let mut data = client.data.lock();
 
         data.insert::<Trakt>(api);
+    }
+
+    {
+        let conn = SqliteConnection::establish(
+            format!("{}/distrakt.db", env::current_dir().unwrap().display()).as_str(),
+        )
+        .expect("Couldn't connect to database");
+
+        let mut data = client.data.lock();
+
+        data.insert::<Sqlite>(Sqlite::new(conn));
     }
 
     client.start().expect("couldn't start bot");

@@ -1,4 +1,4 @@
-use crate::distrakt_trakt::Trakt;
+use crate::wrappers::Trakt;
 use chrono::{DateTime, Utc};
 use serenity::{
     framework::standard::{Args, Command, CommandError},
