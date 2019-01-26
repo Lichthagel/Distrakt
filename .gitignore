@@ -3,5 +3,4 @@
 .idea
 config.json
 .env
-sqlite
 distrakt.db
