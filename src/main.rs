@@ -26,14 +26,14 @@ use std::env;
 struct Handler;
 
 impl EventHandler for Handler {
-    fn message(&self, _: Context, msg: Message) {
+    fn message(&self, ctx: Context, msg: Message) {
         if msg.content == "ping" {
-            msg.channel_id.say("Pong!").unwrap();
+            msg.channel_id.say(&ctx.http, "Pong!").unwrap();
         }
     }
 
     fn ready(&self, ctx: Context, ready: Ready) {
-        ctx.set_game(Game::listening("+login"));
+        ctx.set_activity(Activity::listening("+login"));
         println!("connected to {} guilds", ready.guilds.len());
     }
 }
@@ -53,7 +53,7 @@ fn main() {
             .command("shutdown", |c| {
                 c.owners_only(true)
                     .cmd(Shutdown)
-                    .before(|_, msg| msg.reply("shutting down").is_ok())
+                    .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
             .command("login", |c| c.cmd(Login)),
     );
@@ -61,7 +61,7 @@ fn main() {
     {
         let api = Trakt::new(conf.trakt_id, Some(conf.trakt_secret));
 
-        let mut data = client.data.lock();
+        let mut data = client.data.write();
 
         data.insert::<Trakt>(api);
     }
@@ -72,7 +72,7 @@ fn main() {
         )
         .expect("Couldn't connect to database");
 
-        let mut data = client.data.lock();
+        let mut data = client.data.write();
 
         data.insert::<Sqlite>(Sqlite::new(conn));
     }

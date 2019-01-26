@@ -15,7 +15,7 @@ pub struct Login;
 
 impl Command for Login {
     fn execute(&self, ctx: &mut Context, msg: &Message, _args: Args) -> Result<(), CommandError> {
-        let data = ctx.data.lock();
+        let data = ctx.data.read();
 
         // TODO use futures
 
@@ -30,7 +30,7 @@ impl Command for Login {
 
         let poll_until: DateTime<Utc> = poll_until + Duration::seconds(code.expires_in as i64);
 
-        msg.author.direct_message(|m| {
+        msg.author.direct_message(&ctx,|m| {
             m.embed(|e| {
                 e.title("Login")
                     .url(&code.verification_url)
@@ -101,7 +101,7 @@ impl Command for Login {
                 .execute(&*conn)?;
         }
 
-        msg.author.direct_message(|m| {
+        msg.author.direct_message(&ctx,|m| {
             m.embed(|e| {
                 e.title("Success")
                     .description("You are now logged in. Have fun!")
