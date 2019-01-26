@@ -2,6 +2,8 @@
 extern crate serde_derive;
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 
 mod commands;
 mod config;
@@ -38,6 +40,8 @@ impl EventHandler for Handler {
     }
 }
 
+embed_migrations!();
+
 fn main() {
     let conf = DistraktConfig::load();
 
@@ -71,6 +75,8 @@ fn main() {
             format!("{}/distrakt.db", env::current_dir().unwrap().display()).as_str(),
         )
         .expect("Couldn't connect to database");
+
+        let _ = embedded_migrations::run_with_output(&conn, &mut std::io::stdout());
 
         let mut data = client.data.write();
 
