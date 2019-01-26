@@ -124,6 +124,7 @@ impl Command for Login {
                             refresh_token: tokens.refresh_token,
                             expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
                                 + Duration::seconds(tokens.expires_in as i64),
+                            subscribed: false
                         };
 
                         diesel::insert_into(table)

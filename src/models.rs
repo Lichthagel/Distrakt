@@ -8,4 +8,5 @@ pub struct User {
     pub access_token: String,
     pub refresh_token: String,
     pub expires: NaiveDateTime,
+    pub subscribed: bool
 }

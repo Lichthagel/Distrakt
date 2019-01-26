@@ -4,5 +4,6 @@ table! {
         access_token -> Text,
         refresh_token -> Text,
         expires -> Timestamp,
+        subscribed -> Bool,
     }
 }
