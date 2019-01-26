@@ -12,7 +12,7 @@ mod wrappers;
 mod schema;
 
 use crate::{
-    commands::{auth::Login, owner::Shutdown},
+    commands::{auth::Login, owner::Shutdown, subscribe::Subscribe},
     config::DistraktConfig,
     wrappers::{Sqlite, Trakt},
 };
@@ -59,7 +59,8 @@ fn main() {
                     .cmd(Shutdown)
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
-            .command("login", |c| c.cmd(Login)),
+            .command("login", |c| c.cmd(Login))
+            .command("subscribe", |c| c.cmd(Subscribe)),
     );
 
     {
