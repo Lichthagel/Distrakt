@@ -1,9 +1,13 @@
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate diesel;
 
 mod commands;
 mod config;
+mod models;
 mod wrappers;
+mod schema;
 
 use crate::{
     commands::{auth::Login, owner::Shutdown},
@@ -11,7 +15,12 @@ use crate::{
     wrappers::{Sqlite, Trakt},
 };
 use diesel::prelude::*;
-use serenity::{framework::StandardFramework, model::prelude::*, prelude::*, Client};
+use serenity::{
+    framework::StandardFramework,
+    model::prelude::*,
+    prelude::{Context, EventHandler},
+    Client,
+};
 use std::env;
 
 struct Handler;

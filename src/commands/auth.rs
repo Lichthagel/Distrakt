@@ -1,5 +1,6 @@
-use crate::wrappers::Trakt;
-use chrono::{DateTime, Utc};
+use crate::wrappers::Sqlite;
+use crate::{models::User, schema::users, wrappers::Trakt};
+use chrono::{offset::TimeZone, DateTime, Utc};
 use serenity::{
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
@@ -8,6 +9,7 @@ use serenity::{
 use std::{thread, time::Duration as SleepDuration};
 use time::Duration;
 use trakt::error::Error;
+use diesel::query_dsl::RunQueryDsl;
 
 pub struct Login;
 
@@ -80,7 +82,24 @@ impl Command for Login {
 
         let tokens = tokens.unwrap();
 
-        // TODO save tokens
+        {
+            let user = User {
+                discord_id: msg.author.id.0 as i64,
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
+                    + Duration::seconds(tokens.expires_in as i64),
+            };
+
+            let conn = data
+                .get::<Sqlite>()
+                .ok_or("Couldn't get SQL connection")?
+                .lock()?;
+
+            diesel::insert_into(users::table)
+                .values(&user)
+                .execute(&*conn)?;
+        }
 
         msg.author.direct_message(|m| {
             m.embed(|e| {
