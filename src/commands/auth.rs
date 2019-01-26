@@ -1,10 +1,12 @@
 use crate::{
     models::User,
-    schema::users,
+    schema::users::discord_id,
+    schema::users::dsl::users,
+    schema::users::table,
     wrappers::{Sqlite, Trakt},
 };
 use chrono::{offset::TimeZone, Utc};
-use diesel::query_dsl::RunQueryDsl;
+use diesel::{prelude::*, query_dsl::RunQueryDsl};
 use serenity::{
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
@@ -18,13 +20,32 @@ pub struct Login;
 
 impl Command for Login {
     fn execute(&self, ctx: &mut Context, msg: &Message, _args: Args) -> Result<(), CommandError> {
-        // TODO check if user is logged in
-
         ctx.data
             .read()
-            .get::<Trakt>()
-            .ok_or("Couldn't extract api".to_owned())
-            .and_then(|api| api.devices_authenticate().map_err(|e| e.to_string()))
+            .get::<Sqlite>()
+            .ok_or("Couldn't extract connection".to_owned())
+            .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
+            .and_then(|conn| {
+                users
+                    .filter(discord_id.eq(msg.author.id.0 as i64))
+                    .count()
+                    .get_result(&*conn)
+                    .map_err(|e| e.to_string())
+            })
+            .and_then(|count: i64| {
+                if count == 0 {
+                    Ok(())
+                } else {
+                    Err("You are already logged in".to_owned())
+                }
+            })
+            .and_then(|_| {
+                ctx.data
+                    .read()
+                    .get::<Trakt>()
+                    .ok_or("Couldn't extract api".to_owned())
+                    .and_then(|api| api.devices_authenticate().map_err(|e| e.to_string()))
+            })
             .and_then(|code| {
                 let poll_until = Utc::now() + Duration::seconds((code.expires_in as i64) - 5);
 
@@ -105,7 +126,7 @@ impl Command for Login {
                                 + Duration::seconds(tokens.expires_in as i64),
                         };
 
-                        diesel::insert_into(users::table)
+                        diesel::insert_into(table)
                             .values(&user)
                             .execute(&*conn)
                             .map_err(|e| e.to_string())
