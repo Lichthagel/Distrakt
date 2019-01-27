@@ -1,7 +1,4 @@
-use crate::{
-    schema::users::dsl::discord_id, schema::users::dsl::subscribed, schema::users::dsl::users,
-    wrappers::Sqlite,
-};
+use crate::{schema::notify::dsl::*, wrappers::Sqlite};
 use diesel::{prelude::*, query_dsl::RunQueryDsl};
 use serenity::{
     framework::{standard::Args, standard::Command, standard::CommandError},
@@ -9,18 +6,23 @@ use serenity::{
     prelude::Context,
 };
 
-pub struct Subscribe;
+pub struct Notify;
 
-impl Command for Subscribe {
+impl Command for Notify {
     fn execute(&self, ctx: &mut Context, msg: &Message, _args: Args) -> Result<(), CommandError> {
+        // TODO check if user has channel permission (private channel, or admin on guild)
+        // TODO setup different notifications
         ctx.data
             .read()
             .get::<Sqlite>()
             .ok_or("Couldn't extract connection".to_owned())
             .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
             .and_then(|conn| {
-                diesel::update(users.filter(discord_id.eq(msg.author.id.0 as i64)))
-                    .set(subscribed.eq(true))
+                diesel::insert_into(notify)
+                    .values((
+                        channel.eq(msg.channel_id.0 as i64),
+                        data.eq(msg.author.id.0 as i64),
+                    ))
                     .execute(&*conn)
                     .map_err(|e| e.to_string())
             })

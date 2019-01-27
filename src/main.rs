@@ -12,7 +12,7 @@ mod schema;
 mod wrappers;
 
 use crate::{
-    commands::{auth::Login, owner::Shutdown, subscribe::Subscribe, user::WhoAmI},
+    commands::{auth::Login, notify::Notify, owner::Shutdown, user::WhoAmI},
     config::DistraktConfig,
     wrappers::{Sqlite, Trakt},
 };
@@ -61,7 +61,7 @@ fn main() {
             })
             .command("login", |c| c.cmd(Login))
             .command("whoami", |c| c.cmd(WhoAmI))
-            .command("subscribe", |c| c.cmd(Subscribe)),
+            .command("notify", |c| c.cmd(Notify)),
     );
 
     {
