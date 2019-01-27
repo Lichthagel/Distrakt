@@ -124,7 +124,7 @@ impl Command for Login {
                             refresh_token: tokens.refresh_token,
                             expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
                                 + Duration::seconds(tokens.expires_in as i64),
-                            subscribed: false
+                            subscribed: false,
                         };
 
                         diesel::insert_into(table)
@@ -152,8 +152,7 @@ impl Command for Login {
                         m.embed(|embed| {
                             embed
                                 .title("Error")
-                                .description("There was an error logging you in")
-                                .field("Info", &e, true)
+                                .description(&e)
                                 .color((237u8, 28u8, 36u8))
                         })
                     })

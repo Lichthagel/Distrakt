@@ -8,11 +8,11 @@ extern crate diesel_migrations;
 mod commands;
 mod config;
 mod models;
-mod wrappers;
 mod schema;
+mod wrappers;
 
 use crate::{
-    commands::{auth::Login, owner::Shutdown, subscribe::Subscribe},
+    commands::{auth::Login, owner::Shutdown, subscribe::Subscribe, user::WhoAmI},
     config::DistraktConfig,
     wrappers::{Sqlite, Trakt},
 };
@@ -60,6 +60,7 @@ fn main() {
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
             .command("login", |c| c.cmd(Login))
+            .command("whoami", |c| c.cmd(WhoAmI))
             .command("subscribe", |c| c.cmd(Subscribe)),
     );
 
@@ -77,7 +78,7 @@ fn main() {
         )
         .expect("Couldn't connect to database");
 
-        let _ = embedded_migrations::run_with_output(&conn, &mut std::io::stdout());
+        embedded_migrations::run_with_output(&conn, &mut std::io::stdout()).ok();
 
         let mut data = client.data.write();
 

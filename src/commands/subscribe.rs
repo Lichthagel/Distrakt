@@ -24,16 +24,20 @@ impl Command for Subscribe {
                     .execute(&*conn)
                     .map_err(|e| e.to_string())
             })
-            .and_then(|_| {
-                msg.author
-                    .direct_message(&ctx, |m| {
-                        m.embed(|e| {
-                            e.title("Success")
-                                .description("You have successfully subscribed!")
-                                .color((237u8, 28u8, 36u8))
+            .and_then(|res| {
+                if res > 0 {
+                    msg.author
+                        .direct_message(&ctx, |m| {
+                            m.embed(|e| {
+                                e.title("Success")
+                                    .description("You have successfully subscribed!")
+                                    .color((237u8, 28u8, 36u8))
+                            })
                         })
-                    })
-                    .map_err(|e| e.to_string())
+                        .map_err(|e| e.to_string())
+                } else {
+                    Err("You are not signed in".to_owned())
+                }
             })
             .and_then(|_| Ok(()))
             .map_err(|e| {
@@ -43,8 +47,7 @@ impl Command for Subscribe {
                         m.embed(|embed| {
                             embed
                                 .title("Error")
-                                .description("There was an error subscribing you to the list!")
-                                .field("Info", &e, true)
+                                .description(&e)
                                 .color((237u8, 28u8, 36u8))
                         })
                     })

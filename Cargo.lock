@@ -233,7 +233,7 @@ dependencies = [
  "serde_json 1.0.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "serenity 0.5.11 (git+https://github.com/serenity-rs/serenity?rev=2095263)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
- "trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust?rev=e6ed31e)",
+ "trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust?rev=218a303)",
  "typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1267,7 +1267,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "trakt"
 version = "0.1.0"
-source = "git+https://github.com/Lichthagel/trakt-rust?rev=e6ed31e#e6ed31ea79dbc01e0d143d31ba80deeff45470b0"
+source = "git+https://github.com/Lichthagel/trakt-rust?rev=218a303#218a303e5885fc6b6798e495504907400db08a48"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1598,7 +1598,7 @@ dependencies = [
 "checksum tokio-threadpool 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "17465013014410310f9f61fa10bf4724803c149ea1d51efece131c38efca93aa"
 "checksum tokio-timer 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "4f37f0111d76cc5da132fe9bc0590b9b9cfd079bc7e75ac3846278430a299ff8"
 "checksum traitobject 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "efd1f82c56340fdf16f2a953d7bda4f8fdffba13d93b00844c25572110b26079"
-"checksum trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust?rev=e6ed31e)" = "<none>"
+"checksum trakt 0.1.0 (git+https://github.com/Lichthagel/trakt-rust?rev=218a303)" = "<none>"
 "checksum try-lock 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 "checksum tungstenite 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e9573852f935883137b7f0824832493ce7418bf290c8cf164b7aafc9b0a99aa0"
 "checksum typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "653be63c80a3296da5551e1bfd2cca35227e13cdd08c6668903ae2f4f77aa1f6"
