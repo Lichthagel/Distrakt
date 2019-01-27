@@ -33,15 +33,33 @@ impl Command for WhoAmI {
                     .read()
                     .get::<Trakt>()
                     .ok_or("Couldn't extract API".to_owned())
-                    .and_then(|api| {
-                        api.user_settings(token)
-                            .map_err(|e| e.to_string())
-                    })
+                    .and_then(|api| api.user_settings(token).map_err(|e| e.to_string()))
             })
             .and_then(|settings| {
-                msg.reply(&ctx, format!("{} ({})", &settings.user.username, &settings.user.name.unwrap_or(settings.user.username.clone())).as_str()).map_err(|e| e.to_string())
+                msg.reply(
+                    &ctx,
+                    format!(
+                        "{} ({})",
+                        &settings.user.username,
+                        &settings.user.name.unwrap_or(settings.user.username.clone())
+                    )
+                    .as_str(),
+                )
+                .map_err(|e| e.to_string())
             })
             .and_then(|_| Ok(()))
-            .map_err(|e| e.into())
+            .map_err(|e| {
+                msg.author
+                    .direct_message(&ctx, |m| {
+                        m.embed(|embed| {
+                            embed
+                                .title("Error")
+                                .description(&e)
+                                .color((237u8, 28u8, 36u8))
+                        })
+                    })
+                    .ok();
+                e.into()
+            })
     }
 }

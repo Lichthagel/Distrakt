@@ -41,7 +41,6 @@ impl Command for Subscribe {
             })
             .and_then(|_| Ok(()))
             .map_err(|e| {
-                println!("{}", e);
                 msg.author
                     .direct_message(&ctx, |m| {
                         m.embed(|embed| {
