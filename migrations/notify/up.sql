@@ -1,4 +1,4 @@
-create table notify (
+CREATE TABLE notify (
 	channel UNSIGNED BIG INT,
 	-- 00 my        00 all
 	-- 01 all       01 movies

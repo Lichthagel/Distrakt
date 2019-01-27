@@ -1,5 +1,5 @@
 CREATE TABLE movies (
-  slug VARCHAR PRIMARY KEY,
+  slug VARCHAR,
   released DATETIME,
   title VARCHAR NOT NULL,
   year INT,
@@ -7,5 +7,6 @@ CREATE TABLE movies (
   imdb_id VARCHAR,
   tmdb_id UNSIGNED BIG INT,
   tvdb_id UNSIGNED BIG INT,
-  tvrage_id UNSIGNED BIG INT
+  tvrage_id UNSIGNED BIG INT,
+  CONSTRAINT PK_movie PRIMARY KEY (slug)
 )
