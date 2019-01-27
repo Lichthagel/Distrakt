@@ -28,9 +28,8 @@ table! {
 }
 
 table! {
-    notify (id) {
-        id -> Nullable<Integer>,
-        channel -> BigInt,
+    notify (channel, type_, data) {
+        channel -> Nullable<BigInt>,
         #[sql_name = "type"]
         type_ -> Nullable<Integer>,
         data -> Nullable<BigInt>,
@@ -60,10 +59,4 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(
-    episodes,
-    movies,
-    notify,
-    shows,
-    users,
-);
+allow_tables_to_appear_in_same_query!(episodes, movies, notify, shows, users,);

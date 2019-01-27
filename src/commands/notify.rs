@@ -10,7 +10,6 @@ pub struct Notify;
 
 impl Command for Notify {
     fn execute(&self, ctx: &mut Context, msg: &Message, _args: Args) -> Result<(), CommandError> {
-        // TODO check if user has channel permission (private channel, or admin on guild)
         // TODO setup different notifications
         ctx.data
             .read()

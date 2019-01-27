@@ -19,7 +19,7 @@ use crate::{
 use diesel::prelude::*;
 use serenity::{
     framework::StandardFramework,
-    model::prelude::*,
+    model::prelude::{permissions::Permissions, *},
     prelude::{Context, EventHandler},
     Client,
 };
@@ -61,7 +61,10 @@ fn main() {
             })
             .command("login", |c| c.cmd(Login))
             .command("whoami", |c| c.cmd(WhoAmI))
-            .command("notify", |c| c.cmd(Notify)),
+            .command("notify", |c| {
+                c.cmd(Notify)
+                    .required_permissions(Permissions::ADMINISTRATOR)
+            }),
     );
 
     {
