@@ -28,6 +28,16 @@ table! {
 }
 
 table! {
+    notify (id) {
+        id -> Nullable<Integer>,
+        channel -> BigInt,
+        #[sql_name = "type"]
+        type_ -> Nullable<Integer>,
+        data -> Nullable<BigInt>,
+    }
+}
+
+table! {
     shows (slug) {
         slug -> Nullable<Text>,
         title -> Text,
@@ -53,6 +63,7 @@ table! {
 allow_tables_to_appear_in_same_query!(
     episodes,
     movies,
+    notify,
     shows,
     users,
 );
