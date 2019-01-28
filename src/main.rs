@@ -8,6 +8,7 @@ extern crate diesel_migrations;
 mod commands;
 mod config;
 mod models;
+mod notifier;
 mod schema;
 mod wrappers;
 
@@ -24,6 +25,7 @@ use serenity::{
     Client,
 };
 use std::env;
+use crate::notifier::sync_thread;
 
 struct Handler;
 
@@ -37,6 +39,8 @@ impl EventHandler for Handler {
     fn ready(&self, ctx: Context, ready: Ready) {
         ctx.set_activity(Activity::listening("+login"));
         println!("connected to {} guilds", ready.guilds.len());
+
+        sync_thread(ctx);
     }
 }
 

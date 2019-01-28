@@ -29,9 +29,9 @@ table! {
 
 table! {
     notify (channel, type_, data) {
-        channel -> Nullable<BigInt>,
+        channel -> BigInt,
         #[sql_name = "type"]
-        type_ -> Nullable<Integer>,
+        type_ -> Integer,
         data -> Nullable<BigInt>,
     }
 }
@@ -55,8 +55,15 @@ table! {
         access_token -> Text,
         refresh_token -> Text,
         expires -> Timestamp,
-        subscribed -> Nullable<Bool>,
     }
 }
 
-allow_tables_to_appear_in_same_query!(episodes, movies, notify, shows, users,);
+joinable!(notify -> users (data));
+
+allow_tables_to_appear_in_same_query!(
+    episodes,
+    movies,
+    notify,
+    shows,
+    users,
+);
