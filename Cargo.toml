@@ -16,5 +16,3 @@ chrono = "0.4.6"
 time = "0.1.42"
 diesel = { version = "1.4.0", features = ["sqlite", "chrono"] }
 diesel_migrations = "1.4.0"
-futures = "0.1.25"
-tokio = "0.1.15"

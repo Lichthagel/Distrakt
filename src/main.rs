@@ -40,7 +40,7 @@ impl EventHandler for Handler {
         ctx.set_activity(Activity::listening("+login"));
         println!("connected to {} guilds", ready.guilds.len());
 
-        sync_thread(ctx.data.read().get::<Sqlite>().unwrap().clone());
+        sync_thread(ctx.data);
     }
 }
 
