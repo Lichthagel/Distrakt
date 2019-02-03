@@ -25,15 +25,13 @@ impl Command for WhoAmI {
                     .map_err(|e| e.to_string())
             })
             .and_then(|tokens: Vec<String>| match tokens.get(0) {
-                Some(token) => Ok(token.clone()),
-                None => Err("You are not logged in".to_owned()),
-            })
-            .and_then(|token| {
-                ctx.data
+                Some(token) => ctx
+                    .data
                     .read()
                     .get::<Trakt>()
                     .ok_or("Couldn't extract API".to_owned())
-                    .and_then(|api| api.user_settings(token).map_err(|e| e.to_string()))
+                    .and_then(|api| api.user_settings(token).map_err(|e| e.to_string())),
+                None => Err("You are not logged in".to_owned()),
             })
             .and_then(|settings| {
                 msg.reply(

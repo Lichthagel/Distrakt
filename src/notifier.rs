@@ -60,7 +60,7 @@ pub fn sync_get_token(data: Arc<RwLock<ShareMap>>, _channel: u64, type_: u8, dis
                     _channel,
                     type_,
                     discord_id,
-                    res.get(0).cloned().unwrap(),
+                    res.get(0).unwrap(),
                 );
                 Ok(())
             } else {
@@ -75,13 +75,13 @@ pub fn sync(
     _channel: u64,
     type_: u8,
     _discord_id: u64,
-    access_token: String,
+    access_token: &str,
 ) {
     if type_ % 2 == 0 {
         data.read().get::<Trakt>().map(|api| {
             // movies
             if type_ & 4 == 4 {
-                api.calendar_my_movies(Utc::today(), 14, access_token.clone())
+                api.calendar_my_movies(Utc::today(), 14, access_token)
                     .map(|res| {
                         for movie in res {
                             let id = movie.movie.ids.trakt.unwrap().clone();
@@ -162,7 +162,7 @@ pub fn sync_thread(data: Arc<RwLock<ShareMap>>) {
                             notification.0,
                             notification.1,
                             notification.2.unwrap(),
-                            notification.3.unwrap(),
+                            &notification.3.unwrap(),
                         );
                     }
                     Ok(())
