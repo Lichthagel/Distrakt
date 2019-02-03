@@ -72,7 +72,7 @@ pub fn sync_get_token(data: Arc<RwLock<ShareMap>>, _channel: u64, type_: u8, dis
 
 pub fn sync(
     data: Arc<RwLock<ShareMap>>,
-    _channel: u64,
+    channel: u64,
     type_: u8,
     _discord_id: u64,
     access_token: &str,
@@ -91,7 +91,7 @@ pub fn sync(
                                 .and_then(|sql| sql.lock().map_err(|_| ()))
                                 .and_then(|conn| {
                                     insert_movie(&*conn, movie)
-                                        .and_then(|_| insert_notification(&*conn, _channel, id))
+                                        .and_then(|_| insert_notification(&*conn, channel, id))
                                         .map_err(|_| ())
                                 })
                                 .ok();
@@ -109,8 +109,11 @@ pub fn sync(
                                 .ok_or(())
                                 .and_then(|conn| conn.lock().map_err(|_| ()))
                                 .and_then(|conn| {
+                                    let id = show.episode.ids.trakt.unwrap().clone();
+
                                     insert_show(&*conn, show.show).ok();
                                     insert_episode(&*conn, show.episode, show.first_aired).ok();
+                                    insert_notification(&*conn, channel, id).ok();
                                     Ok(())
                                 })
                                 .ok();
@@ -125,6 +128,7 @@ pub fn sync(
 pub fn sync_thread(data: Arc<RwLock<ShareMap>>) {
     thread::spawn(move || {
         loop {
+            println!("syncing");
             data.read()
                 .get::<Sqlite>()
                 .ok_or(())
