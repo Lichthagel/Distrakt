@@ -16,7 +16,7 @@ table! {
 table! {
     movies (slug) {
         slug -> Nullable<Text>,
-        released -> Nullable<Timestamp>,
+        released -> Nullable<Date>,
         title -> Text,
         year -> Nullable<Integer>,
         trakt_id -> Nullable<BigInt>,
@@ -24,6 +24,13 @@ table! {
         tmdb_id -> Nullable<BigInt>,
         tvdb_id -> Nullable<BigInt>,
         tvrage_id -> Nullable<BigInt>,
+    }
+}
+
+table! {
+    notifications (channel, trakt_id) {
+        channel -> BigInt,
+        trakt_id -> BigInt,
     }
 }
 
@@ -63,6 +70,7 @@ joinable!(notify -> users (data));
 allow_tables_to_appear_in_same_query!(
     episodes,
     movies,
+    notifications,
     notify,
     shows,
     users,

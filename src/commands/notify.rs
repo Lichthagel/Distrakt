@@ -1,7 +1,7 @@
-use crate::{schema::notify::dsl::*, wrappers::Sqlite};
+use crate::{notifier::sync_get_token, schema::notify::dsl::*, wrappers::Sqlite};
 use diesel::{prelude::*, query_dsl::RunQueryDsl};
 use serenity::{
-    framework::{standard::Args, standard::Command, standard::CommandError},
+    framework::standard::{Args, Command, CommandError},
     model::channel::Message,
     prelude::Context,
 };
@@ -27,18 +27,22 @@ impl Command for Notify {
             })
             .and_then(|res| {
                 if res > 0 {
-                    msg.author
-                        .direct_message(&ctx, |m| {
-                            m.embed(|e| {
-                                e.title("Success")
-                                    .description("You have successfully subscribed!")
-                                    .color((237u8, 28u8, 36u8))
-                            })
-                        })
-                        .map_err(|e| e.to_string())
+                    sync_get_token(ctx.data.clone(), msg.channel_id.0, 12, msg.author.id.0);
+                    Ok(())
                 } else {
                     Err("You are not signed in".to_owned())
                 }
+            })
+            .and_then(|_| {
+                msg.author
+                    .direct_message(&ctx, |m| {
+                        m.embed(|e| {
+                            e.title("Success")
+                                .description("You have successfully subscribed!")
+                                .color((237u8, 28u8, 36u8))
+                        })
+                    })
+                    .map_err(|e| e.to_string())
             })
             .and_then(|_| Ok(()))
             .map_err(|e| {

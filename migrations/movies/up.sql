@@ -1,6 +1,6 @@
 CREATE TABLE movies (
   slug VARCHAR,
-  released DATETIME,
+  released DATE,
   title VARCHAR NOT NULL,
   year INT,
   trakt_id UNSIGNED BIG INT,
