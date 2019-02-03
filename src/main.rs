@@ -15,6 +15,7 @@ mod wrappers;
 use crate::{
     commands::{auth::Login, notify::Notify, owner::Shutdown, user::WhoAmI},
     config::DistraktConfig,
+    notifier::{notify_thread, sync_thread},
     wrappers::{Sqlite, Trakt},
 };
 use diesel::prelude::*;
@@ -25,7 +26,6 @@ use serenity::{
     Client,
 };
 use std::env;
-use crate::notifier::sync_thread;
 
 struct Handler;
 
@@ -40,7 +40,8 @@ impl EventHandler for Handler {
         ctx.set_activity(Activity::listening("+login"));
         println!("connected to {} guilds", ready.guilds.len());
 
-        sync_thread(ctx.data);
+        sync_thread(ctx.data.clone());
+        notify_thread(ctx.data, ctx.http);
     }
 }
 

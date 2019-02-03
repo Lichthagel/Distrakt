@@ -1,5 +1,5 @@
 CREATE TABLE episodes (
-  trakt_id UNSIGNED BIG INT,
+  trakt_id UNSIGNED BIG INT NOT NULL,
   title VARCHAR NOT NULL,
   season_num INT NOT NULL,
   episode_num INT NOT NULL,

@@ -3,14 +3,17 @@ use crate::{
     schema::{episodes, movies, notifications, notify, shows, users},
     wrappers::{Sqlite, Trakt},
 };
-use chrono::{DateTime, Utc};
+use chrono::{offset::TimeZone, DateTime, Utc};
 use diesel::{
     prelude::{QueryResult, SqliteConnection},
     query_dsl::{QueryDsl, RunQueryDsl},
     ExpressionMethods, Insertable, NullableExpressionMethods,
 };
+use serenity::http::raw::Http;
+use serenity::model::prelude::id::ChannelId;
 use serenity::prelude::RwLock;
 use std::{sync::Arc, thread, time::Duration};
+use time::Duration as TimeDuration;
 use trakt::models::{
     CalendarMovie as TraktCalendarMovie, Episode as TraktEpisode, Show as TraktShow,
 };
@@ -175,5 +178,147 @@ pub fn sync_thread(data: Arc<RwLock<ShareMap>>) {
 
             thread::sleep(Duration::from_secs(60000))
         }
+    });
+}
+
+pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
+    thread::spawn(move || loop {
+        println!("notifying");
+        data.read()
+            .get::<Sqlite>()
+            .ok_or(())
+            .and_then(|sql| sql.lock().map_err(|_| ()))
+            .and_then(|conn| {
+                episodes::table
+                    .filter(
+                        episodes::first_aired.lt(Utc::now().naive_utc() + TimeDuration::minutes(5)),
+                    )
+                    .filter(episodes::first_aired.gt(Utc::now().naive_utc()))
+                    .load::<Episode>(&*conn)
+                    .map_err(|_| ())
+            })
+            .and_then(|res: Vec<Episode>| {
+                for ep in res {
+                    data.read()
+                        .get::<Sqlite>()
+                        .ok_or(())
+                        .and_then(|sql| sql.lock().map_err(|_| ()))
+                        .and_then(|conn| {
+                            notifications::table
+                                .select(notifications::channel)
+                                .filter(notifications::trakt_id.eq(ep.trakt_id))
+                                .load::<i64>(&*conn)
+                                .map(|res| res.iter().map(|i| ChannelId(*i as u64)).collect())
+                                .and_then(|res: Vec<ChannelId>| {
+                                    for channel in res {
+                                        channel
+                                            .send_message(&http, |m| {
+                                                m.embed(|e| {
+                                                    e.title("New Episode Notification")
+                                                        .url(format!(
+                                                            "https://trakt.tv/episodes/{}",
+                                                            ep.trakt_id
+                                                        ))
+                                                        .description(format!(
+                                                            "Episode {}x{} \"{}\" aired",
+                                                            ep.season_num, ep.episode_num, ep.title
+                                                        ))
+                                                        .timestamp(
+                                                            Utc.from_utc_datetime(
+                                                                &ep.first_aired.unwrap(),
+                                                            )
+                                                            .to_rfc3339(),
+                                                        )
+                                                })
+                                            })
+                                            .ok();
+                                    }
+
+                                    Ok(())
+                                })
+                                .and_then(|_| {
+                                    diesel::delete(
+                                        notifications::table
+                                            .filter(notifications::trakt_id.eq(ep.trakt_id)),
+                                    )
+                                    .execute(&*conn)
+                                })
+                                .map_err(|_| ())
+                        })
+                        .ok();
+                }
+                Ok(())
+            })
+            .and(
+                data.read()
+                    .get::<Sqlite>()
+                    .ok_or(())
+                    .and_then(|sql| sql.lock().map_err(|_| ()))
+                    .and_then(|conn| {
+                        movies::table
+                            .filter(movies::released.eq(Utc::today().naive_utc()))
+                            .load::<Movie>(&*conn)
+                            .map_err(|_| ())
+                    })
+                    .and_then(|res: Vec<Movie>| {
+                        for movie in res {
+                            data.read()
+                                .get::<Sqlite>()
+                                .ok_or(())
+                                .and_then(|sql| sql.lock().map_err(|_| ()))
+                                .and_then(|conn| {
+                                    notifications::table
+                                        .select(notifications::channel)
+                                        .filter(notifications::trakt_id.eq(movie.trakt_id))
+                                        .load::<i64>(&*conn)
+                                        .map(|res| {
+                                            res.iter().map(|i| ChannelId(*i as u64)).collect()
+                                        })
+                                        .and_then(|res: Vec<ChannelId>| {
+                                            for channel in res {
+                                                channel
+                                                    .send_message(&http, |m| {
+                                                        m.embed(|e| {
+                                                            e.title("New Movie Notification")
+                                                                .url(format!(
+                                                                    "https://trakt.tv/movies/{}",
+                                                                    movie.slug
+                                                                ))
+                                                                .description(format!(
+                                                                    "Movie \"{}\" aired",
+                                                                    movie.title
+                                                                ))
+                                                                .timestamp(
+                                                                    Utc.from_utc_date(
+                                                                        &movie.released.unwrap(),
+                                                                    )
+                                                                    .and_hms(0, 0, 0)
+                                                                    .to_rfc3339(),
+                                                                )
+                                                        })
+                                                    })
+                                                    .ok();
+                                            }
+
+                                            Ok(())
+                                        })
+                                        .and_then(|_| {
+                                            diesel::delete(
+                                                notifications::table.filter(
+                                                    notifications::trakt_id.eq(movie.trakt_id),
+                                                ),
+                                            )
+                                            .execute(&*conn)
+                                        })
+                                        .map_err(|_| ())
+                                })
+                                .ok();
+                        }
+
+                        Ok(())
+                    }),
+            )
+            .ok();
+        thread::sleep(Duration::from_secs(300));
     });
 }

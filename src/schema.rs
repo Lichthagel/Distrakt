@@ -1,6 +1,6 @@
 table! {
     episodes (trakt_id) {
-        trakt_id -> Nullable<BigInt>,
+        trakt_id -> BigInt,
         title -> Text,
         season_num -> Integer,
         episode_num -> Integer,
@@ -15,11 +15,11 @@ table! {
 
 table! {
     movies (slug) {
-        slug -> Nullable<Text>,
+        slug -> Text,
         released -> Nullable<Date>,
         title -> Text,
         year -> Nullable<Integer>,
-        trakt_id -> Nullable<BigInt>,
+        trakt_id -> BigInt,
         imdb_id -> Nullable<Text>,
         tmdb_id -> Nullable<BigInt>,
         tvdb_id -> Nullable<BigInt>,
@@ -67,11 +67,4 @@ table! {
 
 joinable!(notify -> users (data));
 
-allow_tables_to_appear_in_same_query!(
-    episodes,
-    movies,
-    notifications,
-    notify,
-    shows,
-    users,
-);
+allow_tables_to_appear_in_same_query!(episodes, movies, notifications, notify, shows, users,);

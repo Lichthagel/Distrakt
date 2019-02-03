@@ -1,9 +1,9 @@
 CREATE TABLE movies (
-  slug VARCHAR,
+  slug VARCHAR NOT NULL,
   released DATE,
   title VARCHAR NOT NULL,
   year INT,
-  trakt_id UNSIGNED BIG INT,
+  trakt_id UNSIGNED BIG INT NOT NULL,
   imdb_id VARCHAR,
   tmdb_id UNSIGNED BIG INT,
   tvdb_id UNSIGNED BIG INT,

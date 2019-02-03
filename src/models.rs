@@ -80,7 +80,7 @@ pub struct Movie {
     pub released: Option<NaiveDate>,
     pub title: String,
     pub year: Option<i32>,
-    pub trakt_id: Option<i64>,
+    pub trakt_id: i64,
     pub imdb_id: Option<String>,
     pub tmdb_id: Option<i64>,
     pub tvdb_id: Option<i64>,
@@ -92,7 +92,7 @@ impl From<TraktCalendarMovie> for Movie {
         Self {
             title: movie.movie.title,
             slug: movie.movie.ids.slug.unwrap(),
-            trakt_id: movie.movie.ids.trakt.map(|i| i as i64),
+            trakt_id: movie.movie.ids.trakt.unwrap() as i64,
             tvdb_id: movie.movie.ids.tvdb.map(|i| i as i64),
             imdb_id: movie.movie.ids.imdb,
             tmdb_id: movie.movie.ids.tmdb.map(|i| i as i64),
