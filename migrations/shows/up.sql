@@ -1,5 +1,5 @@
 CREATE TABLE shows (
-  slug VARCHAR,
+  slug VARCHAR NOT NULL,
   title VARCHAR NOT NULL,
   year INT,
   trakt_id UNSIGNED BIG INT,

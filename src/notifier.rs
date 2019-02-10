@@ -27,8 +27,9 @@ fn insert_episode(
     conn: &SqliteConnection,
     episode: TraktEpisode,
     first_aired: DateTime<Utc>,
+    show_slug: String
 ) -> QueryResult<usize> {
-    Episode::from((episode, first_aired))
+    Episode::from((episode, first_aired, show_slug))
         .insert_into(episodes::table)
         .execute(conn)
 }
@@ -119,9 +120,10 @@ pub fn sync(
                                 .and_then(|conn| conn.lock().map_err(|_| ()))
                                 .and_then(|conn| {
                                     let id = show.episode.ids.trakt.unwrap().clone();
+                                    let show_slug = show.show.ids.slug.as_ref().unwrap().clone();
 
                                     insert_show(&*conn, show.show).ok();
-                                    insert_episode(&*conn, show.episode, show.first_aired).ok();
+                                    insert_episode(&*conn, show.episode, show.first_aired, show_slug).ok();
                                     insert_notification(&*conn, channel, id).ok();
                                     Ok(())
                                 })

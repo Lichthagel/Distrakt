@@ -46,6 +46,7 @@ impl From<TraktShow> for Show {
 pub struct Episode {
     pub trakt_id: i64,
     pub title: String,
+    pub show_slug: String,
     pub season_num: i32,
     pub episode_num: i32,
     pub first_aired: Option<NaiveDateTime>,
@@ -56,10 +57,11 @@ pub struct Episode {
     pub tvrage_id: Option<i64>,
 }
 
-impl From<(TraktEpisode, DateTime<Utc>)> for Episode {
-    fn from((episode, first_aired): (TraktEpisode, DateTime<Utc>)) -> Self {
+impl From<(TraktEpisode, DateTime<Utc>, String)> for Episode {
+    fn from((episode, first_aired, show_slug): (TraktEpisode, DateTime<Utc>, String)) -> Self {
         Self {
             title: episode.title.unwrap(),
+            show_slug,
             season_num: episode.season as i32,
             episode_num: episode.number as i32,
             first_aired: Some(first_aired.naive_utc()),

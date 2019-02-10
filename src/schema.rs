@@ -2,6 +2,7 @@ table! {
     episodes (trakt_id) {
         trakt_id -> BigInt,
         title -> Text,
+        show_slug -> Text,
         season_num -> Integer,
         episode_num -> Integer,
         first_aired -> Nullable<Timestamp>,
@@ -45,7 +46,7 @@ table! {
 
 table! {
     shows (slug) {
-        slug -> Nullable<Text>,
+        slug -> Text,
         title -> Text,
         year -> Nullable<Integer>,
         trakt_id -> Nullable<BigInt>,
@@ -66,5 +67,6 @@ table! {
 }
 
 joinable!(notify -> users (data));
+joinable!(episodes -> shows (show_slug));
 
 allow_tables_to_appear_in_same_query!(episodes, movies, notifications, notify, shows, users,);
