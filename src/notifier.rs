@@ -3,15 +3,13 @@ use crate::{
     schema::{episodes, movies, notifications, notify, shows, users},
     wrappers::{Sqlite, Trakt},
 };
-use chrono::{offset::TimeZone, DateTime, Utc};
+use chrono::{offset::TimeZone, DateTime, NaiveDateTime, Utc};
 use diesel::{
     prelude::{QueryResult, SqliteConnection},
     query_dsl::{QueryDsl, RunQueryDsl},
     ExpressionMethods, Insertable, NullableExpressionMethods,
 };
-use serenity::http::raw::Http;
-use serenity::model::prelude::id::ChannelId;
-use serenity::prelude::RwLock;
+use serenity::{http::raw::Http, model::prelude::id::ChannelId, prelude::RwLock};
 use std::{sync::Arc, thread, time::Duration};
 use time::Duration as TimeDuration;
 use trakt::models::{
@@ -27,7 +25,7 @@ fn insert_episode(
     conn: &SqliteConnection,
     episode: TraktEpisode,
     first_aired: DateTime<Utc>,
-    show_slug: String
+    show_slug: String,
 ) -> QueryResult<usize> {
     Episode::from((episode, first_aired, show_slug))
         .insert_into(episodes::table)
@@ -123,7 +121,13 @@ pub fn sync(
                                     let show_slug = show.show.ids.slug.as_ref().unwrap().clone();
 
                                     insert_show(&*conn, show.show).ok();
-                                    insert_episode(&*conn, show.episode, show.first_aired, show_slug).ok();
+                                    insert_episode(
+                                        &*conn,
+                                        show.episode,
+                                        show.first_aired,
+                                        show_slug,
+                                    )
+                                    .ok();
                                     insert_notification(&*conn, channel, id).ok();
                                     Ok(())
                                 })
@@ -202,61 +206,107 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                         episodes::first_aired.lt(Utc::now().naive_utc() + TimeDuration::minutes(5)),
                     )
                     .filter(episodes::first_aired.gt(Utc::now().naive_utc()))
-                    .load::<Episode>(&*conn)
+                    .inner_join(shows::dsl::shows)
+                    .select((
+                        episodes::trakt_id,
+                        shows::title,
+                        episodes::season_num,
+                        episodes::episode_num,
+                        episodes::title,
+                        episodes::first_aired,
+                    ))
+                    .load::<(i64, String, i32, i32, String, Option<NaiveDateTime>)>(&*conn)
                     .map_err(|_| ())
             })
-            .and_then(|res: Vec<Episode>| {
-                for ep in res {
-                    data.read()
-                        .get::<Sqlite>()
-                        .ok_or(())
-                        .and_then(|sql| sql.lock().map_err(|_| ()))
-                        .and_then(|conn| {
-                            notifications::table
-                                .select(notifications::channel)
-                                .filter(notifications::trakt_id.eq(ep.trakt_id))
-                                .load::<i64>(&*conn)
-                                .map(|res| res.iter().map(|i| ChannelId(*i as u64)).collect())
-                                .and_then(|res: Vec<ChannelId>| {
-                                    for channel in res {
-                                        channel
-                                            .send_message(&http, |m| {
-                                                m.embed(|e| {
-                                                    e.title("New Episode Notification")
-                                                        .url(format!(
-                                                            "https://trakt.tv/episodes/{}",
-                                                            ep.trakt_id
-                                                        ))
-                                                        .description(format!(
-                                                            "Episode {}x{} \"{}\" aired",
-                                                            ep.season_num, ep.episode_num, ep.title
-                                                        ))
-                                                        .timestamp(
-                                                            Utc.from_utc_datetime(
-                                                                &ep.first_aired.unwrap(),
+            .map(
+                |res: Vec<(i64, String, i32, i32, String, Option<NaiveDateTime>)>| {
+                    res.iter()
+                        .map(
+                            |(
+                                trakt_id,
+                                show_title,
+                                season_num,
+                                episode_num,
+                                episode_title,
+                                first_aired,
+                            )| {
+                                (
+                                    *trakt_id as u64,
+                                    show_title.to_owned(),
+                                    *season_num as u32,
+                                    *episode_num as u32,
+                                    episode_title.to_owned(),
+                                    first_aired
+                                        .map(|first_aired| Utc.from_utc_datetime(&first_aired)),
+                                )
+                            },
+                        )
+                        .collect()
+                },
+            )
+            .and_then(
+                |res: Vec<(u64, String, u32, u32, String, Option<DateTime<Utc>>)>| {
+                    for (
+                        trakt_id,
+                        show_title,
+                        season_num,
+                        episode_num,
+                        episode_title,
+                        first_aired,
+                    ) in res
+                    {
+                        data.read()
+                            .get::<Sqlite>()
+                            .ok_or(())
+                            .and_then(|sql| sql.lock().map_err(|_| ()))
+                            .and_then(|conn| {
+                                notifications::table
+                                    .select(notifications::channel)
+                                    .filter(notifications::trakt_id.eq(trakt_id as i64))
+                                    .load::<i64>(&*conn)
+                                    .map(|res| res.iter().map(|i| ChannelId(*i as u64)).collect())
+                                    .and_then(|res: Vec<ChannelId>| {
+                                        for channel in res {
+                                            channel
+                                                .send_message(&http, |m| {
+                                                    m.embed(|e| {
+                                                        e.title("New Episode Notification")
+                                                            .url(format!(
+                                                                "https://trakt.tv/episodes/{}",
+                                                                trakt_id
+                                                            ))
+                                                            .description(format!(
+                                                                "**{}**\nEpisode {}x{} \"{}\"",
+                                                                show_title,
+                                                                season_num,
+                                                                episode_num,
+                                                                episode_title
+                                                            ))
+                                                            .timestamp(
+                                                                first_aired.unwrap().to_rfc3339(),
                                                             )
-                                                            .to_rfc3339(),
-                                                        )
+                                                    })
                                                 })
-                                            })
-                                            .ok();
-                                    }
+                                                .ok();
+                                        }
 
-                                    Ok(())
-                                })
-                                .and_then(|_| {
-                                    diesel::delete(
-                                        notifications::table
-                                            .filter(notifications::trakt_id.eq(ep.trakt_id)),
-                                    )
-                                    .execute(&*conn)
-                                })
-                                .map_err(|_| ())
-                        })
-                        .ok();
-                }
-                Ok(())
-            })
+                                        Ok(())
+                                    })
+                                    .and_then(|_| {
+                                        diesel::delete(
+                                            notifications::table.filter(
+                                                notifications::trakt_id.eq(trakt_id as i64),
+                                            ),
+                                        )
+                                        .execute(&*conn)
+                                    })
+                                    .map_err(|_| ())
+                            })
+                            .ok();
+                    }
+                    Ok(())
+                },
+            )
             .and(
                 data.read()
                     .get::<Sqlite>()
