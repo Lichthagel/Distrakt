@@ -1,1 +1,1 @@
-DROP TABLE notify
+DROP TABLE notify;

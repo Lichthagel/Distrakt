@@ -1,1 +1,1 @@
-DROP TABLE movies
+DROP TABLE movies;

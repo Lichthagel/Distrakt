@@ -233,8 +233,8 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                 (
                                     *trakt_id as u64,
                                     show_title.to_owned(),
-                                    *season_num as u32,
-                                    *episode_num as u32,
+                                    *season_num,
+                                    *episode_num,
                                     episode_title.to_owned(),
                                     first_aired
                                         .map(|first_aired| Utc.from_utc_datetime(&first_aired)),

@@ -9,4 +9,4 @@ CREATE TABLE movies (
   tvdb_id UNSIGNED BIG INT,
   tvrage_id UNSIGNED BIG INT,
   CONSTRAINT PK_movie PRIMARY KEY (slug)
-)
+);

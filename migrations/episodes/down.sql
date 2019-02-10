@@ -1,1 +1,1 @@
-DROP TABLE episodes
+DROP TABLE episodes;

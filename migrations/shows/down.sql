@@ -1,1 +1,1 @@
-DROP TABLE shows
+DROP TABLE shows;

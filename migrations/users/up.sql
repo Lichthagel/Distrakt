@@ -4,4 +4,4 @@ CREATE TABLE users (
   refresh_token VARCHAR NOT NULL,
   expires DATETIME NOT NULL,
   CONSTRAINT PK_user PRIMARY KEY (discord_id)
-)
+);

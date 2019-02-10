@@ -10,5 +10,4 @@ CREATE TABLE notify (
 	data UNSIGNED BIG INT,
 	CONSTRAINT PK_notify PRIMARY KEY (channel, type, data),
 	CONSTRAINT FK_users FOREIGN KEY (data) REFERENCES users(discord_id)
-)
-
+);

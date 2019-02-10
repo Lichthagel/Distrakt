@@ -8,4 +8,4 @@ CREATE TABLE shows (
   tvdb_id UNSIGNED BIG INT,
   tvrage_id UNSIGNED BIG INT,
   CONSTRAINT PK_show PRIMARY KEY (slug)
-)
+);

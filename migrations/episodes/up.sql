@@ -12,4 +12,4 @@ CREATE TABLE episodes (
   tvrage_id UNSIGNED BIG INT,
   CONSTRAINT PK_episode PRIMARY KEY (trakt_id),
   CONSTRAINT FK_shows FOREIGN KEY (show_slug) REFERENCES shows(slug)
-)
+);
