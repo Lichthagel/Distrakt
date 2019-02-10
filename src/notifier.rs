@@ -245,7 +245,7 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                 },
             )
             .and_then(
-                |res: Vec<(u64, String, u32, u32, String, Option<DateTime<Utc>>)>| {
+                |res: Vec<(u64, String, i32, i32, String, Option<DateTime<Utc>>)>| {
                     for (
                         trakt_id,
                         show_title,
