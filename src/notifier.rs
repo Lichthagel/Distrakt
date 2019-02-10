@@ -84,7 +84,10 @@ pub fn sync(
         data.read().get::<Trakt>().map(|api| {
             // movies
             if type_ & 4 == 4 {
-                api.calendar_my_movies(Utc::today(), 14, access_token)
+                api.calendar_my_movies(access_token)
+                    .start_date(Utc::today())
+                    .days(14)
+                    .execute()
                     .map(|res| {
                         for movie in res {
                             let id = movie.movie.ids.trakt.unwrap().clone();
@@ -104,7 +107,10 @@ pub fn sync(
             }
             // shows
             if type_ & 8 == 8 {
-                api.calendar_my_shows(Utc::today(), 14, access_token)
+                api.calendar_my_shows(access_token)
+                    .start_date(Utc::today())
+                    .days(14)
+                    .execute()
                     .map(|res| {
                         for show in res {
                             data.read()
