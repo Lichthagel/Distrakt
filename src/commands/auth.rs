@@ -113,23 +113,34 @@ impl Command for Login {
             .and_then(|tokens| {
                 ctx.data
                     .read()
-                    .get::<Sqlite>()
-                    .ok_or("Couldn't get SQL connection")?
-                    .lock()
-                    .map_err(|e| e.to_string())
-                    .and_then(|conn| {
-                        let user = User {
-                            discord_id: msg.author.id.0 as i64,
-                            access_token: tokens.access_token,
-                            refresh_token: tokens.refresh_token,
-                            expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
-                                + Duration::seconds(tokens.expires_in as i64),
-                        };
-
-                        diesel::insert_into(table)
-                            .values(&user)
-                            .execute(&*conn)
+                    .get::<Trakt>()
+                    .ok_or("Couldn't extract api".to_owned())
+                    .and_then(|api| {
+                        api.user_settings(&tokens.access_token)
                             .map_err(|e| e.to_string())
+                    })
+                    .and_then(|settings| {
+                        ctx.data
+                            .read()
+                            .get::<Sqlite>()
+                            .ok_or("Couldn't get SQL connection")?
+                            .lock()
+                            .map_err(|e| e.to_string())
+                            .and_then(|conn| {
+                                let user = User {
+                                    discord_id: msg.author.id.0 as i64,
+                                    access_token: tokens.access_token,
+                                    refresh_token: tokens.refresh_token,
+                                    expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
+                                        + Duration::seconds(tokens.expires_in as i64),
+                                    slug: settings.user.ids.slug.unwrap(),
+                                };
+
+                                diesel::insert_into(table)
+                                    .values(&user)
+                                    .execute(&*conn)
+                                    .map_err(|e| e.to_string())
+                            })
                     })
             })
             .and_then(|_| {

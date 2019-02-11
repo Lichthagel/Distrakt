@@ -1,5 +1,8 @@
-use crate::wrappers::Trakt;
-use crate::{schema::users::dsl::*, wrappers::Sqlite};
+use crate::{
+    schema::users::dsl::*,
+    sql::UserSql,
+    wrappers::{Sqlite, Trakt},
+};
 use diesel::prelude::*;
 use serenity::{
     framework::standard::{Args, Command, CommandError},
@@ -58,6 +61,41 @@ impl Command for WhoAmI {
                     })
                     .ok();
                 e.into()
+            })
+    }
+}
+
+pub struct User;
+
+impl Command for User {
+    fn execute(&self, ctx: &mut Context, msg: &Message, _: Args) -> Result<(), CommandError> {
+        msg.mentions
+            .get(0)
+            .ok_or("No user mentioned".to_owned())
+            .and_then(|user: &serenity::model::prelude::User| {
+                ctx.data
+                    .read()
+                    .get::<Sqlite>()
+                    .ok_or("Couldn't extract SQL connection".to_owned())
+                    .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
+                    .and_then(|conn| user.get_sql(&*conn))
+            })
+            .and_then(|user| {
+                let res = format!("https://trakt.tv/users/{}", user.slug);
+                msg.reply(ctx, &res).map(|_| ()).map_err(|e| e.to_string())
+            })
+            .map_err(|e| {
+                msg.channel_id
+                    .send_message(&ctx.http, |m| {
+                        m.embed(|embed| {
+                            embed
+                                .title("Error")
+                                .description(e.clone())
+                                .color((237u8, 28u8, 36u8))
+                        })
+                    })
+                    .ok();
+                CommandError(e.to_owned())
             })
     }
 }

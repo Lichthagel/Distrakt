@@ -10,10 +10,16 @@ mod config;
 mod models;
 mod notifier;
 mod schema;
+mod sql;
 mod wrappers;
 
 use crate::{
-    commands::{auth::Login, notify::Notify, owner::Shutdown, user::WhoAmI},
+    commands::{
+        auth::Login,
+        notify::Notify,
+        owner::Shutdown,
+        user::{User, WhoAmI},
+    },
     config::DistraktConfig,
     notifier::{notify_thread, sync_thread},
     wrappers::{Sqlite, Trakt},
@@ -21,7 +27,12 @@ use crate::{
 use diesel::prelude::*;
 use serenity::{
     framework::StandardFramework,
-    model::prelude::{permissions::Permissions, *},
+    model::prelude::{
+        gateway::{Activity, Ready},
+        id::UserId,
+        permissions::Permissions,
+        Message,
+    },
     prelude::{Context, EventHandler},
     Client,
 };
@@ -69,7 +80,8 @@ fn main() {
             .command("notify", |c| {
                 c.cmd(Notify)
                     .required_permissions(Permissions::ADMINISTRATOR)
-            }),
+            })
+            .command("user", |c| c.cmd(User)),
     );
 
     {
