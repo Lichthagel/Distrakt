@@ -3,6 +3,7 @@ use crate::{
     sql::UserSql,
     wrappers::{Sqlite, Trakt},
 };
+use chrono::{offset::TimeZone, Utc};
 use diesel::prelude::*;
 use serenity::{
     framework::standard::{Args, Command, CommandError},
@@ -81,8 +82,39 @@ impl Command for User {
                     .and_then(|conn| user.get_sql(&*conn))
             })
             .and_then(|user| {
-                let res = format!("https://trakt.tv/users/{}", user.slug);
-                msg.reply(ctx, &res).map(|_| ()).map_err(|e| e.to_string())
+                if user.private {
+                    Err("This user is private".to_owned())
+                } else {
+                    msg.channel_id
+                        .send_message(&ctx.http, |m| {
+                            m.embed(|e| {
+                                let mut e = e
+                                    .title(user.name.as_ref().unwrap_or(&user.username))
+                                    .color((237u8, 28u8, 36u8));
+                                if let Some(url) = user.cover_image.as_ref() {
+                                    e = e.thumbnail(url);
+                                }
+                                if let Some(date) = user.joined_at {
+                                    e = e.field("Joined at", Utc.from_utc_datetime(&date), true);
+                                }
+                                if let Some(boolean) = user.vip {
+                                    e = e.field("VIP", boolean, true);
+                                }
+                                e.author(|a| {
+                                    let mut a = a
+                                        .name(&user.username)
+                                        .url(&format!("https://trakt.tv/users/{}", &user.username));
+
+                                    if let Some(url) = user.avatar {
+                                        a = a.icon_url(&url);
+                                    }
+                                    a
+                                })
+                            })
+                        })
+                        .map_err(|e| e.to_string())
+                        .map(|_| ())
+                }
             })
             .map_err(|e| {
                 msg.channel_id

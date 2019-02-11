@@ -64,10 +64,24 @@ table! {
         refresh_token -> Text,
         expires -> Timestamp,
         slug -> Text,
+        username -> Text,
+        name -> Nullable<Text>,
+        private -> Bool,
+        vip -> Nullable<Bool>,
+        cover_image -> Nullable<Text>,
+        avatar -> Nullable<Text>,
+        joined_at -> Nullable<Timestamp>,
     }
 }
 
-joinable!(notify -> users (data));
 joinable!(episodes -> shows (show_slug));
+joinable!(notify -> users (data));
 
-allow_tables_to_appear_in_same_query!(episodes, movies, notifications, notify, shows, users,);
+allow_tables_to_appear_in_same_query!(
+    episodes,
+    movies,
+    notifications,
+    notify,
+    shows,
+    users,
+);

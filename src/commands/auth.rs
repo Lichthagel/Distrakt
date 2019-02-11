@@ -134,6 +134,13 @@ impl Command for Login {
                                     expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
                                         + Duration::seconds(tokens.expires_in as i64),
                                     slug: settings.user.ids.slug.unwrap(),
+                                    username: settings.user.username,
+                                    name: settings.user.name,
+                                    private: settings.user.private,
+                                    vip: settings.user.vip,
+                                    cover_image: settings.account.cover_image,
+                                    avatar: settings.user.images.map(|i| i.avatar.full),
+                                    joined_at: settings.user.joined_at.map(|d| d.naive_utc())
                                 };
 
                                 diesel::insert_into(table)
