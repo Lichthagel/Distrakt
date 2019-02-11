@@ -6,8 +6,8 @@ edition = "2018"
 
 [dependencies]
 # change when released
-trakt = { git = "https://github.com/Lichthagel/trakt-rust", rev = "534e585" }
-serenity = { git = "https://github.com/serenity-rs/serenity", rev = "2095263" }
+trakt = { git = "https://github.com/Lichthagel/trakt-rust", rev = "06a7dff" }
+serenity = { git = "https://github.com/serenity-rs/serenity", rev = "6b4e198" }
 serde = "1.0.87"
 serde_json = "1.0.38"
 serde_derive = "1.0.87"
