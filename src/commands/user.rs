@@ -18,7 +18,7 @@ impl Command for WhoAmI {
         ctx.data
             .read()
             .get::<Sqlite>()
-            .ok_or("Couldn't extract SQL connection".to_owned())
+            .ok_or_else(|| "Couldn't extract SQL connection".to_owned())
             .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
             .and_then(|conn| {
                 users
@@ -33,7 +33,7 @@ impl Command for WhoAmI {
                     .data
                     .read()
                     .get::<Trakt>()
-                    .ok_or("Couldn't extract API".to_owned())
+                    .ok_or_else(|| "Couldn't extract API".to_owned())
                     .and_then(|api| api.user_settings(token).map_err(|e| e.to_string())),
                 None => Err("You are not logged in".to_owned()),
             })
@@ -43,7 +43,7 @@ impl Command for WhoAmI {
                     format!(
                         "{} ({})",
                         &settings.user.username,
-                        &settings.user.name.unwrap_or(settings.user.username.clone())
+                        settings.user.name.as_ref().unwrap_or(&settings.user.username)
                     )
                     .as_str(),
                 )
@@ -72,12 +72,12 @@ impl Command for User {
     fn execute(&self, ctx: &mut Context, msg: &Message, _: Args) -> Result<(), CommandError> {
         msg.mentions
             .get(0)
-            .ok_or("No user mentioned".to_owned())
+            .ok_or_else(|| "No user mentioned".to_owned())
             .and_then(|user: &serenity::model::prelude::User| {
                 ctx.data
                     .read()
                     .get::<Sqlite>()
-                    .ok_or("Couldn't extract SQL connection".to_owned())
+                    .ok_or_else(|| "Couldn't extract SQL connection".to_owned())
                     .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
                     .and_then(|conn| user.get_sql(&*conn))
             })

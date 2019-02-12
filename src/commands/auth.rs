@@ -23,7 +23,7 @@ impl Command for Login {
         ctx.data
             .read()
             .get::<Sqlite>()
-            .ok_or("Couldn't extract connection".to_owned())
+            .ok_or_else(|| "Couldn't extract connection".to_owned())
             .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
             .and_then(|conn| {
                 users
@@ -43,7 +43,7 @@ impl Command for Login {
                 ctx.data
                     .read()
                     .get::<Trakt>()
-                    .ok_or("Couldn't extract api".to_owned())
+                    .ok_or_else(|| "Couldn't extract api".to_owned())
                     .and_then(|api| api.devices_authenticate().map_err(|e| e.to_string()))
             })
             .and_then(|code| {
@@ -71,7 +71,7 @@ impl Command for Login {
                 ctx.data
                     .read()
                     .get::<Trakt>()
-                    .ok_or("Couldn't extract api".to_owned())
+                    .ok_or_else(|| "Couldn't extract api".to_owned())
                     .and_then(|api| {
                         let mut tokens = None;
 
@@ -80,7 +80,7 @@ impl Command for Login {
 
                             let res = api.get_token(&code.device_code);
 
-                            match match res {
+                            if let Some(body) = match res {
                                 Ok(body) => Ok(Some(body)),
                                 Err(e) => {
                                     if let Error::Response(res) = e {
@@ -94,11 +94,8 @@ impl Command for Login {
                                     }
                                 }
                             }? {
-                                Some(body) => {
-                                    tokens = Some(body);
-                                    break 'poll;
-                                }
-                                None => {}
+                                tokens = Some(body);
+                                break 'poll;
                             };
 
                             Utc::now() < poll_until
@@ -114,7 +111,7 @@ impl Command for Login {
                 ctx.data
                     .read()
                     .get::<Trakt>()
-                    .ok_or("Couldn't extract api".to_owned())
+                    .ok_or_else(|| "Couldn't extract api".to_owned())
                     .and_then(|api| {
                         api.user_settings(&tokens.access_token)
                             .map_err(|e| e.to_string())
@@ -132,7 +129,7 @@ impl Command for Login {
                                     access_token: tokens.access_token,
                                     refresh_token: tokens.refresh_token,
                                     expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
-                                        + Duration::seconds(tokens.expires_in as i64),
+                                        + Duration::seconds(i64::from(tokens.expires_in)),
                                     slug: settings.user.ids.slug.unwrap(),
                                     username: settings.user.username,
                                     name: settings.user.name,
@@ -140,7 +137,7 @@ impl Command for Login {
                                     vip: settings.user.vip,
                                     cover_image: settings.account.cover_image,
                                     avatar: settings.user.images.map(|i| i.avatar.full),
-                                    joined_at: settings.user.joined_at.map(|d| d.naive_utc())
+                                    joined_at: settings.user.joined_at.map(|d| d.naive_utc()),
                                 };
 
                                 diesel::insert_into(table)

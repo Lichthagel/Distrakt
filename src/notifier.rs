@@ -20,6 +20,27 @@ use trakt::{
 };
 use typemap::ShareMap;
 
+type RawEpisode = (
+    i64,
+    String,
+    i32,
+    i32,
+    String,
+    Option<NaiveDateTime>,
+    Option<String>,
+    Option<i32>,
+);
+type ParsedEpisode = (
+    u64,
+    String,
+    i32,
+    i32,
+    String,
+    Option<DateTime<Utc>>,
+    Option<String>,
+    u32,
+);
+
 fn insert_show(conn: &SqliteConnection, show: TraktShow) -> QueryResult<usize> {
     Show::from(show).insert_into(shows::table).execute(conn)
 }
@@ -59,14 +80,8 @@ pub fn sync_get_token(data: Arc<RwLock<ShareMap>>, _channel: u64, type_: u8, dis
                 .map_err(|_| ())
         })
         .and_then(|res: Vec<String>| {
-            if res.len() > 0 {
-                sync(
-                    data.clone(),
-                    _channel,
-                    type_,
-                    discord_id,
-                    res.get(0).unwrap(),
-                );
+            if !res.is_empty() {
+                sync(data.clone(), _channel, type_, discord_id, &res[0]);
                 Ok(())
             } else {
                 Err(())
@@ -83,7 +98,7 @@ pub fn sync(
     access_token: &str,
 ) {
     if type_ % 2 == 0 {
-        data.read().get::<Trakt>().map(|api| {
+        if let Some(api) = data.read().get::<Trakt>() {
             // movies
             if type_ & 4 == 4 {
                 api.calendar_my_movies(access_token)
@@ -93,7 +108,7 @@ pub fn sync(
                     .execute()
                     .map(|res| {
                         for movie in res {
-                            let id = movie.movie.ids.trakt.unwrap().clone();
+                            let id = movie.movie.ids.trakt.unwrap();
                             data.read()
                                 .get::<Sqlite>()
                                 .ok_or(())
@@ -122,7 +137,7 @@ pub fn sync(
                                 .ok_or(())
                                 .and_then(|conn| conn.lock().map_err(|_| ()))
                                 .and_then(|conn| {
-                                    let id = show.episode.ids.trakt.unwrap().clone();
+                                    let id = show.episode.ids.trakt.unwrap();
                                     let show_slug = show.show.ids.slug.as_ref().unwrap().clone();
 
                                     insert_show(&*conn, show.show).ok();
@@ -141,7 +156,7 @@ pub fn sync(
                     })
                     .ok();
             }
-        });
+        }
     }
 }
 
@@ -210,7 +225,6 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                     .filter(
                         episodes::first_aired.lt(Utc::now().naive_utc() + TimeDuration::minutes(5)),
                     )
-                    .filter(episodes::first_aired.gt(Utc::now().naive_utc()))
                     .inner_join(shows::dsl::shows)
                     .select((
                         episodes::trakt_id,
@@ -234,129 +248,104 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                     )>(&*conn)
                     .map_err(|_| ())
             })
-            .map(
-                |res: Vec<(
-                    i64,
-                    String,
-                    i32,
-                    i32,
-                    String,
-                    Option<NaiveDateTime>,
-                    Option<String>,
-                    Option<i32>,
-                )>| {
-                    res.iter()
-                        .map(
-                            |(
-                                trakt_id,
-                                show_title,
-                                season_num,
-                                episode_num,
-                                episode_title,
-                                first_aired,
-                                overview,
-                                runtime,
-                            )| {
-                                (
-                                    *trakt_id as u64,
-                                    show_title.to_owned(),
-                                    *season_num,
-                                    *episode_num,
-                                    episode_title.to_owned(),
-                                    first_aired
-                                        .map(|first_aired| Utc.from_utc_datetime(&first_aired)),
-                                    overview.to_owned(),
-                                    runtime.unwrap() as u32,
-                                )
-                            },
-                        )
-                        .collect()
-                },
-            )
-            .and_then(
-                |res: Vec<(
-                    u64,
-                    String,
-                    i32,
-                    i32,
-                    String,
-                    Option<DateTime<Utc>>,
-                    Option<String>,
-                    u32,
-                )>| {
-                    for (
-                        trakt_id,
-                        show_title,
-                        season_num,
-                        episode_num,
-                        episode_title,
-                        first_aired,
-                        overview,
-                        runtime,
-                    ) in res
-                    {
-                        data.read()
-                            .get::<Sqlite>()
-                            .ok_or(())
-                            .and_then(|sql| sql.lock().map_err(|_| ()))
-                            .and_then(|conn| {
-                                notifications::table
-                                    .select(notifications::channel)
-                                    .filter(notifications::trakt_id.eq(trakt_id as i64))
-                                    .load::<i64>(&*conn)
-                                    .map(|res| res.iter().map(|i| ChannelId(*i as u64)).collect())
-                                    .and_then(|res: Vec<ChannelId>| {
-                                        for channel in res {
-                                            channel
-                                                .send_message(&http, |m| {
-                                                    m.embed(|mut e| {
-                                                        if let Some(overview) = &overview {
-                                                            e = e
-                                                                .field("Overview", overview, false);
-                                                        }
+            .map(|res: Vec<RawEpisode>| {
+                res.iter()
+                    .map(
+                        |(
+                            trakt_id,
+                            show_title,
+                            season_num,
+                            episode_num,
+                            episode_title,
+                            first_aired,
+                            overview,
+                            runtime,
+                        )| {
+                            (
+                                *trakt_id as u64,
+                                show_title.to_owned(),
+                                *season_num,
+                                *episode_num,
+                                episode_title.to_owned(),
+                                first_aired.map(|first_aired| Utc.from_utc_datetime(&first_aired)),
+                                overview.to_owned(),
+                                runtime.unwrap() as u32,
+                            )
+                        },
+                    )
+                    .collect()
+            })
+            .and_then(|res: Vec<ParsedEpisode>| {
+                for (
+                    trakt_id,
+                    show_title,
+                    season_num,
+                    episode_num,
+                    episode_title,
+                    first_aired,
+                    overview,
+                    runtime,
+                ) in res
+                {
+                    data.read()
+                        .get::<Sqlite>()
+                        .ok_or(())
+                        .and_then(|sql| sql.lock().map_err(|_| ()))
+                        .and_then(|conn| {
+                            notifications::table
+                                .select(notifications::channel)
+                                .filter(notifications::trakt_id.eq(trakt_id as i64))
+                                .load::<i64>(&*conn)
+                                .map(|res| res.iter().map(|i| ChannelId(*i as u64)).collect())
+                                .and_then(|res: Vec<ChannelId>| {
+                                    for channel in res {
+                                        channel
+                                            .send_message(&http, |m| {
+                                                m.embed(|mut e| {
+                                                    if let Some(overview) = &overview {
+                                                        e = e.field("Overview", overview, false);
+                                                    }
 
-                                                        e.title("New Episode Notification")
-                                                            .url(format!(
-                                                                "https://trakt.tv/episodes/{}",
-                                                                trakt_id
-                                                            ))
-                                                            .description(format!(
-                                                                "**{}**\nEpisode {}x{} \"{}\"",
-                                                                show_title,
-                                                                season_num,
-                                                                episode_num,
-                                                                episode_title
-                                                            ))
-                                                            .field(
-                                                                "Runtime",
-                                                                format!("{} minutes", runtime),
-                                                                true,
-                                                            )
-                                                            .timestamp(
-                                                                first_aired.unwrap().to_rfc3339(),
-                                                            )
-                                                    })
+                                                    e.title("New Episode Notification")
+                                                        .url(format!(
+                                                            "https://trakt.tv/episodes/{}",
+                                                            trakt_id
+                                                        ))
+                                                        .description(format!(
+                                                            "**{}**\nEpisode {}x{} \"{}\"",
+                                                            show_title,
+                                                            season_num,
+                                                            episode_num,
+                                                            episode_title
+                                                        ))
+                                                        .field(
+                                                            "Runtime",
+                                                            format!("{} minutes", runtime),
+                                                            true,
+                                                        )
+                                                        .timestamp(
+                                                            first_aired.unwrap().to_rfc3339(),
+                                                        )
                                                 })
-                                                .ok();
-                                        }
+                                            })
+                                            .ok();
+                                    }
 
-                                        Ok(())
-                                    })
-                                    .and_then(|_| {
-                                        diesel::delete(
-                                            notifications::table.filter(
-                                                notifications::trakt_id.eq(trakt_id as i64),
-                                            ),
-                                        )
-                                        .execute(&*conn)
-                                    })
-                                    .map_err(|_| ())
-                            })
-                            .ok();
-                    }
-                    Ok(())
-                },
-            )
+                                    Ok(())
+                                })
+                                .and_then(|_| {
+                                    diesel::delete(
+                                        notifications::table
+                                            .filter(notifications::trakt_id.eq(trakt_id as i64)),
+                                    )
+                                    .execute(&*conn)
+                                })
+                                .map_err(|_| ())
+                        })
+                        .ok();
+                }
+                Ok(())
+            })
             .and(
                 data.read()
                     .get::<Sqlite>()
@@ -388,7 +377,8 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                                     .send_message(&http, |m| {
                                                         m.embed(|mut e| {
                                                             let movie = &movie;
-                                                            if let Some(overview) = &movie.overview {
+                                                            if let Some(overview) = &movie.overview
+                                                            {
                                                                 e = e.field(
                                                                     "Overview", overview, false,
                                                                 );
@@ -400,7 +390,8 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                                                 );
                                                             }
 
-                                                            if let Some(homepage) = &movie.homepage {
+                                                            if let Some(homepage) = &movie.homepage
+                                                            {
                                                                 e = e.field(
                                                                     "Homepage", homepage, true,
                                                                 );

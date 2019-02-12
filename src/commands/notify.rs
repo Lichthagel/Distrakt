@@ -14,7 +14,7 @@ impl Command for Notify {
         ctx.data
             .read()
             .get::<Sqlite>()
-            .ok_or("Couldn't extract connection".to_owned())
+            .ok_or_else(|| "Couldn't extract connection".to_owned())
             .and_then(|conn| conn.lock().map_err(|e| e.to_string()))
             .and_then(|conn| {
                 diesel::insert_into(notify)

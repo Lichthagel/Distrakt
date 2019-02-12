@@ -42,7 +42,7 @@ impl From<TraktShow> for Show {
     fn from(show: TraktShow) -> Self {
         Self {
             title: show.title,
-            year: show.year.map(|i| i as i32),
+            year: show.year.map(i32::from),
             slug: show.ids.slug,
             trakt_id: show.ids.trakt.map(|i| i as i64),
             tvdb_id: show.ids.tvdb.map(|i| i as i64),
@@ -127,7 +127,7 @@ impl From<TraktCalendarMovie> for Movie {
             runtime: Some(movie.movie.runtime as i32),
             trailer: movie.movie.trailer,
             released: Some(movie.released),
-            year: movie.movie.year.map(|i| i as i32),
+            year: movie.movie.year.map(i32::from),
             homepage: movie.movie.homepage,
         }
     }

@@ -68,7 +68,7 @@ fn main() {
         StandardFramework::new()
             .configure(|c| {
                 c.prefix(conf.prefix.as_str())
-                    .owners(conf.owners.iter().map(|i| UserId(i.clone())).collect())
+                    .owners(conf.owners.iter().map(|i| UserId(*i)).collect())
             })
             .command("shutdown", |c| {
                 c.owners_only(true)
