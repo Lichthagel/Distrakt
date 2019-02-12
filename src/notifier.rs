@@ -225,6 +225,7 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                     .filter(
                         episodes::first_aired.lt(Utc::now().naive_utc() + TimeDuration::minutes(5)),
                     )
+                    .filter(episodes::first_aired.gt(Utc::now().naive_utc()))
                     .inner_join(shows::dsl::shows)
                     .select((
                         episodes::trakt_id,
