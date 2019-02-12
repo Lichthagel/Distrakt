@@ -10,6 +10,8 @@ CREATE TABLE episodes (
   tmdb_id UNSIGNED BIG INT,
   tvdb_id UNSIGNED BIG INT,
   tvrage_id UNSIGNED BIG INT,
+  overview VARCHAR,
+  runtime UNSIGNED INT,
   CONSTRAINT PK_episode PRIMARY KEY (trakt_id),
   CONSTRAINT FK_shows FOREIGN KEY (show_slug) REFERENCES shows(slug)
 );

@@ -11,6 +11,8 @@ table! {
         tmdb_id -> Nullable<BigInt>,
         tvdb_id -> Nullable<BigInt>,
         tvrage_id -> Nullable<BigInt>,
+        overview -> Nullable<Text>,
+        runtime -> Nullable<Integer>,
     }
 }
 
@@ -25,6 +27,10 @@ table! {
         tmdb_id -> Nullable<BigInt>,
         tvdb_id -> Nullable<BigInt>,
         tvrage_id -> Nullable<BigInt>,
+        overview -> Nullable<Text>,
+        runtime -> Nullable<Integer>,
+        trailer -> Nullable<Text>,
+        homepage -> Nullable<Text>,
     }
 }
 
@@ -54,6 +60,10 @@ table! {
         tmdb_id -> Nullable<BigInt>,
         tvdb_id -> Nullable<BigInt>,
         tvrage_id -> Nullable<BigInt>,
+        overview -> Nullable<Text>,
+        runtime -> Nullable<Integer>,
+        trailer -> Nullable<Text>,
+        homepage -> Nullable<Text>,
     }
 }
 

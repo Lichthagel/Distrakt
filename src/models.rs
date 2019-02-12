@@ -1,7 +1,7 @@
 use crate::schema::{episodes, movies, notifications, shows, users};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use trakt::models::{
-    CalendarMovie as TraktCalendarMovie, Episode as TraktEpisode, Show as TraktShow,
+    FullCalendarMovie as TraktCalendarMovie, FullEpisode as TraktEpisode, FullShow as TraktShow,
 };
 
 #[derive(Queryable, Insertable)]
@@ -32,6 +32,10 @@ pub struct Show {
     pub imdb_id: Option<String>,
     pub tmdb_id: Option<i64>,
     pub tvrage_id: Option<i64>,
+    pub overview: Option<String>,
+    pub runtime: Option<i32>,
+    pub trailer: Option<String>,
+    pub homepage: Option<String>,
 }
 
 impl From<TraktShow> for Show {
@@ -45,6 +49,10 @@ impl From<TraktShow> for Show {
             imdb_id: show.ids.imdb,
             tmdb_id: show.ids.tmdb.map(|i| i as i64),
             tvrage_id: show.ids.tvrage.map(|i| i as i64),
+            overview: show.overview,
+            runtime: Some(show.runtime as i32),
+            trailer: show.trailer,
+            homepage: show.homepage,
         }
     }
 }
@@ -63,6 +71,8 @@ pub struct Episode {
     pub tmdb_id: Option<i64>,
     pub tvdb_id: Option<i64>,
     pub tvrage_id: Option<i64>,
+    pub overview: Option<String>,
+    pub runtime: Option<i32>,
 }
 
 impl From<(TraktEpisode, DateTime<Utc>, String)> for Episode {
@@ -79,6 +89,8 @@ impl From<(TraktEpisode, DateTime<Utc>, String)> for Episode {
             imdb_id: episode.ids.imdb,
             tmdb_id: episode.ids.tmdb.map(|i| i as i64),
             tvrage_id: episode.ids.tvrage.map(|i| i as i64),
+            overview: episode.overview,
+            runtime: Some(episode.runtime as i32),
         }
     }
 }
@@ -95,6 +107,10 @@ pub struct Movie {
     pub tmdb_id: Option<i64>,
     pub tvdb_id: Option<i64>,
     pub tvrage_id: Option<i64>,
+    pub overview: Option<String>,
+    pub runtime: Option<i32>,
+    pub trailer: Option<String>,
+    pub homepage: Option<String>,
 }
 
 impl From<TraktCalendarMovie> for Movie {
@@ -107,8 +123,12 @@ impl From<TraktCalendarMovie> for Movie {
             imdb_id: movie.movie.ids.imdb,
             tmdb_id: movie.movie.ids.tmdb.map(|i| i as i64),
             tvrage_id: movie.movie.ids.tvrage.map(|i| i as i64),
+            overview: Some(movie.movie.overview),
+            runtime: Some(movie.movie.runtime as i32),
+            trailer: movie.movie.trailer,
             released: Some(movie.released),
             year: movie.movie.year.map(|i| i as i32),
+            homepage: movie.movie.homepage,
         }
     }
 }

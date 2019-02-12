@@ -7,5 +7,9 @@ CREATE TABLE shows (
   tmdb_id UNSIGNED BIG INT,
   tvdb_id UNSIGNED BIG INT,
   tvrage_id UNSIGNED BIG INT,
+  overview VARCHAR,
+  runtime UNSIGNED INT,
+  trailer VARCHAR,
+  homepage VARCHAR,
   CONSTRAINT PK_show PRIMARY KEY (slug)
 );

@@ -12,8 +12,11 @@ use diesel::{
 use serenity::{http::raw::Http, model::prelude::id::ChannelId, prelude::RwLock};
 use std::{sync::Arc, thread, time::Duration};
 use time::Duration as TimeDuration;
-use trakt::models::{
-    CalendarMovie as TraktCalendarMovie, Episode as TraktEpisode, Show as TraktShow,
+use trakt::{
+    extended_info::ExtendedInfoFull,
+    models::{
+        FullCalendarMovie as TraktCalendarMovie, FullEpisode as TraktEpisode, FullShow as TraktShow,
+    },
 };
 use typemap::ShareMap;
 
@@ -85,7 +88,8 @@ pub fn sync(
             if type_ & 4 == 4 {
                 api.calendar_my_movies(access_token)
                     .start_date(Utc::today())
-                    .days(14)
+                    .days(4)
+                    .full()
                     .execute()
                     .map(|res| {
                         for movie in res {
@@ -108,7 +112,8 @@ pub fn sync(
             if type_ & 8 == 8 {
                 api.calendar_my_shows(access_token)
                     .start_date(Utc::today())
-                    .days(14)
+                    .days(4)
+                    .full()
                     .execute()
                     .map(|res| {
                         for show in res {
@@ -214,12 +219,32 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                         episodes::episode_num,
                         episodes::title,
                         episodes::first_aired,
+                        episodes::overview,
+                        episodes::runtime,
                     ))
-                    .load::<(i64, String, i32, i32, String, Option<NaiveDateTime>)>(&*conn)
+                    .load::<(
+                        i64,
+                        String,
+                        i32,
+                        i32,
+                        String,
+                        Option<NaiveDateTime>,
+                        Option<String>,
+                        Option<i32>,
+                    )>(&*conn)
                     .map_err(|_| ())
             })
             .map(
-                |res: Vec<(i64, String, i32, i32, String, Option<NaiveDateTime>)>| {
+                |res: Vec<(
+                    i64,
+                    String,
+                    i32,
+                    i32,
+                    String,
+                    Option<NaiveDateTime>,
+                    Option<String>,
+                    Option<i32>,
+                )>| {
                     res.iter()
                         .map(
                             |(
@@ -229,6 +254,8 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                 episode_num,
                                 episode_title,
                                 first_aired,
+                                overview,
+                                runtime,
                             )| {
                                 (
                                     *trakt_id as u64,
@@ -238,6 +265,8 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                     episode_title.to_owned(),
                                     first_aired
                                         .map(|first_aired| Utc.from_utc_datetime(&first_aired)),
+                                    overview.to_owned(),
+                                    runtime.unwrap() as u32,
                                 )
                             },
                         )
@@ -245,7 +274,16 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                 },
             )
             .and_then(
-                |res: Vec<(u64, String, i32, i32, String, Option<DateTime<Utc>>)>| {
+                |res: Vec<(
+                    u64,
+                    String,
+                    i32,
+                    i32,
+                    String,
+                    Option<DateTime<Utc>>,
+                    Option<String>,
+                    u32,
+                )>| {
                     for (
                         trakt_id,
                         show_title,
@@ -253,6 +291,8 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                         episode_num,
                         episode_title,
                         first_aired,
+                        overview,
+                        runtime,
                     ) in res
                     {
                         data.read()
@@ -269,7 +309,12 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                         for channel in res {
                                             channel
                                                 .send_message(&http, |m| {
-                                                    m.embed(|e| {
+                                                    m.embed(|mut e| {
+                                                        if let Some(overview) = &overview {
+                                                            e = e
+                                                                .field("Overview", overview, false);
+                                                        }
+
                                                         e.title("New Episode Notification")
                                                             .url(format!(
                                                                 "https://trakt.tv/episodes/{}",
@@ -282,6 +327,11 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                                                 episode_num,
                                                                 episode_title
                                                             ))
+                                                            .field(
+                                                                "Runtime",
+                                                                format!("{} minutes", runtime),
+                                                                true,
+                                                            )
                                                             .timestamp(
                                                                 first_aired.unwrap().to_rfc3339(),
                                                             )
@@ -336,7 +386,26 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                             for channel in res {
                                                 channel
                                                     .send_message(&http, |m| {
-                                                        m.embed(|e| {
+                                                        m.embed(|mut e| {
+                                                            let movie = &movie;
+                                                            if let Some(overview) = &movie.overview {
+                                                                e = e.field(
+                                                                    "Overview", overview, false,
+                                                                );
+                                                            }
+
+                                                            if let Some(trailer) = &movie.trailer {
+                                                                e = e.field(
+                                                                    "Trailer", trailer, true,
+                                                                );
+                                                            }
+
+                                                            if let Some(homepage) = &movie.homepage {
+                                                                e = e.field(
+                                                                    "Homepage", homepage, true,
+                                                                );
+                                                            }
+
                                                             e.title("New Movie Notification")
                                                                 .url(format!(
                                                                     "https://trakt.tv/movies/{}",
@@ -346,6 +415,14 @@ pub fn notify_thread(data: Arc<RwLock<ShareMap>>, http: Arc<Http>) {
                                                                     "Movie \"{}\" aired",
                                                                     movie.title
                                                                 ))
+                                                                .field(
+                                                                    "Runtime",
+                                                                    format!(
+                                                                        "{} minutes",
+                                                                        movie.runtime.unwrap()
+                                                                    ),
+                                                                    true,
+                                                                )
                                                                 .timestamp(
                                                                     Utc.from_utc_date(
                                                                         &movie.released.unwrap(),
