@@ -15,3 +15,7 @@ impl DistraktConfig {
             .expect("Couldn't load config")
     }
 }
+
+impl typemap::Key for DistraktConfig {
+    type Value = Self;
+}

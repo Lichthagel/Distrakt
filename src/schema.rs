@@ -87,11 +87,4 @@ table! {
 joinable!(episodes -> shows (show_slug));
 joinable!(notify -> users (data));
 
-allow_tables_to_appear_in_same_query!(
-    episodes,
-    movies,
-    notifications,
-    notify,
-    shows,
-    users,
-);
+allow_tables_to_appear_in_same_query!(episodes, movies, notifications, notify, shows, users,);

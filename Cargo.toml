@@ -6,13 +6,19 @@ edition = "2018"
 
 [dependencies]
 # change when released
-trakt = { git = "https://github.com/Lichthagel/trakt-rust", rev = "b1f22088" }
-serenity = { git = "https://github.com/serenity-rs/serenity", rev = "6b4e198" }
-serde = "1.0.87"
-serde_json = "1.0.38"
-serde_derive = "1.0.87"
-typemap = "0.3.3"
-chrono = "0.4.6"
-time = "0.1.42"
-diesel = { version = "1.4.0", features = ["sqlite", "chrono"] }
-diesel_migrations = "1.4.0"
+serenity = { git = "https://github.com/serenity-rs/serenity", rev = "9e541bc" }
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+typemap = "0.3"
+chrono = "0.4"
+time = "0.1"
+diesel = { version = "1.4", features = ["sqlite", "chrono"] }
+diesel_migrations = "1.4"
+futures = "0.1"
+
+[dependencies.trakt]
+git = "https://github.com/Lichthagel/trakt-rust"
+rev = "aed2f10"
+default-features = false
+features = ["sync", "async"]

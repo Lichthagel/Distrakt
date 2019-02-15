@@ -43,7 +43,11 @@ impl Command for WhoAmI {
                     format!(
                         "{} ({})",
                         &settings.user.username,
-                        settings.user.name.as_ref().unwrap_or(&settings.user.username)
+                        settings
+                            .user
+                            .name
+                            .as_ref()
+                            .unwrap_or(&settings.user.username)
                     )
                     .as_str(),
                 )

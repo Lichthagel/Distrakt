@@ -48,7 +48,10 @@ impl EventHandler for Handler {
     }
 
     fn ready(&self, ctx: Context, ready: Ready) {
-        ctx.set_activity(Activity::listening("+login"));
+        ctx.set_activity(Activity::listening(&format!(
+            "{}login",
+            ctx.data.read().get::<DistraktConfig>().unwrap().prefix
+        )));
         println!("connected to {} guilds", ready.guilds.len());
 
         sync_thread(ctx.data.clone());
@@ -85,7 +88,7 @@ fn main() {
     );
 
     {
-        let api = Trakt::new(conf.trakt_id, Some(conf.trakt_secret));
+        let api = Trakt::new(conf.trakt_id.clone(), Some(conf.trakt_secret.clone()));
 
         let mut data = client.data.write();
 
@@ -104,6 +107,8 @@ fn main() {
 
         data.insert::<Sqlite>(Sqlite::new(conn));
     }
+
+    client.data.write().insert::<DistraktConfig>(conf);
 
     client.start().expect("couldn't start bot");
 }
