@@ -78,7 +78,7 @@ pub struct Episode {
 impl From<(TraktEpisode, DateTime<Utc>, String)> for Episode {
     fn from((episode, first_aired, show_slug): (TraktEpisode, DateTime<Utc>, String)) -> Self {
         Self {
-            title: episode.title.unwrap(),
+            title: episode.title.unwrap_or(format!("Episode {}", episode.number)),
             show_slug,
             season_num: episode.season as i32,
             episode_num: episode.number as i32,
