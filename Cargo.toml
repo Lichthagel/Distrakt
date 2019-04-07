@@ -5,20 +5,18 @@ authors = ["Jens Gatzweiler <lichthagel@tuta.io>"]
 edition = "2018"
 
 [dependencies]
-# change when released
-serenity = { git = "https://github.com/serenity-rs/serenity", rev = "9e541bc" }
+serenity = { git = "https://github.com/serenity-rs/serenity", branch = "v0.6.x" }
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
+bincode = "1.1"
 typemap = "0.3"
 chrono = "0.4"
 time = "0.1"
-diesel = { version = "1.4", features = ["sqlite", "chrono"] }
-diesel_migrations = "1.4"
 futures = "0.1"
+sled = "0.21"
 
 [dependencies.trakt]
-git = "https://github.com/Lichthagel/trakt-rust"
-rev = "aed2f10"
+version = "0.0"
 default-features = false
 features = ["sync", "async"]

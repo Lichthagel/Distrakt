@@ -1,16 +1,13 @@
-use diesel::prelude::SqliteConnection;
+use sled::Db;
 use std::ops::Deref;
-use std::sync::Mutex;
 use trakt::TraktApi;
 
-pub struct Trakt {
-    api: TraktApi,
-}
+pub struct Trakt(TraktApi);
 
 impl Trakt {
     pub fn new(client_id: String, client_secret: Option<String>) -> Self {
         Self {
-            api: TraktApi::new(client_id, client_secret),
+            0: TraktApi::new(client_id, client_secret),
         }
     }
 }
@@ -23,30 +20,26 @@ impl Deref for Trakt {
     type Target = TraktApi;
 
     fn deref(&self) -> &Self::Target {
-        &self.api
+        &self.0
     }
 }
 
-pub struct Sqlite {
-    conn: Mutex<SqliteConnection>,
-}
+pub struct Users(Db);
 
-impl Sqlite {
-    pub fn new(conn: SqliteConnection) -> Self {
-        Self {
-            conn: Mutex::new(conn),
-        }
+impl Users {
+    pub fn new(db: Db) -> Self {
+        Self { 0: db }
     }
 }
 
-impl typemap::Key for Sqlite {
+impl typemap::Key for Users {
     type Value = Self;
 }
 
-impl Deref for Sqlite {
-    type Target = Mutex<SqliteConnection>;
+impl Deref for Users {
+    type Target = Db;
 
     fn deref(&self) -> &Self::Target {
-        &self.conn
+        &self.0
     }
 }

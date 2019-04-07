@@ -1,42 +1,30 @@
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
 
 mod commands;
 mod config;
 mod models;
-mod notifier;
-mod schema;
-mod sql;
 mod wrappers;
 
 use crate::{
     commands::{
         auth::Login,
-        notify::Notify,
         owner::Shutdown,
-        user::{User, WhoAmI},
     },
     config::DistraktConfig,
-    notifier::{notify_thread, sync_thread},
-    wrappers::{Sqlite, Trakt},
+    wrappers::{Trakt, Users},
 };
-use diesel::prelude::*;
 use serenity::{
     framework::StandardFramework,
     model::prelude::{
         gateway::{Activity, Ready},
         id::UserId,
-        permissions::Permissions,
         Message,
     },
     prelude::{Context, EventHandler},
     Client,
 };
-use std::env;
+use sled::Db;
 
 struct Handler;
 
@@ -53,13 +41,8 @@ impl EventHandler for Handler {
             ctx.data.read().get::<DistraktConfig>().unwrap().prefix
         )));
         println!("connected to {} guilds", ready.guilds.len());
-
-        sync_thread(ctx.data.clone());
-        notify_thread(ctx.data, ctx.http);
     }
 }
-
-embed_migrations!();
 
 fn main() {
     let conf = DistraktConfig::load();
@@ -79,12 +62,6 @@ fn main() {
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
             .command("login", |c| c.cmd(Login))
-            .command("whoami", |c| c.cmd(WhoAmI))
-            .command("notify", |c| {
-                c.cmd(Notify)
-                    .required_permissions(Permissions::ADMINISTRATOR)
-            })
-            .command("user", |c| c.cmd(User)),
     );
 
     {
@@ -96,16 +73,9 @@ fn main() {
     }
 
     {
-        let conn = SqliteConnection::establish(
-            format!("{}/distrakt.db", env::current_dir().unwrap().display()).as_str(),
-        )
-        .expect("Couldn't connect to database");
+        let db = Db::start_default("db/users").unwrap();
 
-        embedded_migrations::run_with_output(&conn, &mut std::io::stdout()).ok();
-
-        let mut data = client.data.write();
-
-        data.insert::<Sqlite>(Sqlite::new(conn));
+        client.data.write().insert::<Users>(Users::new(db));
     }
 
     client.data.write().insert::<DistraktConfig>(conf);

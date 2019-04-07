@@ -2,5 +2,4 @@
 **/*.rs.bk
 .idea
 config.json
-.env
-distrakt.db
+db
