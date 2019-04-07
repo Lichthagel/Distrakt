@@ -2,7 +2,7 @@ use sled::Db;
 use std::ops::Deref;
 use trakt::TraktApi;
 
-pub struct Trakt(TraktApi);
+pub struct Trakt(TraktApi<'static>);
 
 impl Trakt {
     pub fn new(client_id: String, client_secret: Option<String>) -> Self {
@@ -17,7 +17,7 @@ impl typemap::Key for Trakt {
 }
 
 impl Deref for Trakt {
-    type Target = TraktApi;
+    type Target = TraktApi<'static>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

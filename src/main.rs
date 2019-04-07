@@ -3,10 +3,11 @@ extern crate serde_derive;
 
 mod commands;
 mod config;
+mod messages;
 mod models;
 mod wrappers;
 
-use crate::commands::watchlist::Watchlist;
+use crate::commands::watchlist::{WatchlistList, WatchlistRandom};
 use crate::{
     commands::{auth::Login, owner::Shutdown},
     config::DistraktConfig,
@@ -60,7 +61,11 @@ fn main() {
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
             .command("login", |c| c.cmd(Login))
-            .command("watchlist", |c| c.cmd(Watchlist)),
+            .group("watchlist", |g| {
+                g.prefix("watchlist")
+                    .default_cmd(WatchlistList)
+                    .command("random", |c| c.cmd(WatchlistRandom))
+            }),
     );
 
     {

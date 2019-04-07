@@ -38,7 +38,7 @@ impl Login {
                 .get::<Trakt>()
                 .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
-            code = api.devices_authenticate().map_err(|e| e.to_string())?
+            code = api.oauth_device_code().map_err(|e| e.to_string())?
         }
 
         let mut tokens = None;
@@ -70,7 +70,7 @@ impl Login {
                     .get::<Trakt>()
                     .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
-                let res = api.get_token(&code.device_code);
+                let res = api.oauth_device_token(&code.device_code);
 
                 if let Some(body) = match res {
                     Ok(body) => Ok(Some(body)),
