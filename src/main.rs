@@ -6,11 +6,9 @@ mod config;
 mod models;
 mod wrappers;
 
+use crate::commands::watchlist::Watchlist;
 use crate::{
-    commands::{
-        auth::Login,
-        owner::Shutdown,
-    },
+    commands::{auth::Login, owner::Shutdown},
     config::DistraktConfig,
     wrappers::{Trakt, Users},
 };
@@ -62,6 +60,7 @@ fn main() {
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
             .command("login", |c| c.cmd(Login))
+            .command("watchlist", |c| c.cmd(Watchlist)),
     );
 
     {
