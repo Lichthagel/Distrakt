@@ -1,21 +1,42 @@
 use crate::{
     messages::{full_movie, full_show},
-    models::{
-        User,
-        Watchlist,
-    },
-    wrappers::{Trakt, Database},
+    models::{User, Watchlist},
+    wrappers::{Database, Trakt},
 };
+use chrono::Utc;
 use rand::{seq::IteratorRandom, thread_rng};
 use serenity::{
     client::Context,
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
 };
+use sled::Tree;
+use std::sync::Arc;
 use std::{cmp::min, string::ToString};
-use trakt::models::{FullListItem, ListItemType};
-use chrono::Utc;
 use time::Duration;
+use trakt::models::{FullListItem, ListItemType};
+use trakt::TraktApi;
+
+fn get_watchlist(
+    watchlists: Arc<Tree>,
+    api: &TraktApi,
+    user: &User,
+) -> Result<Watchlist, String> {
+    let watchlist = watchlists.get(&user.slug).map_err(|e| e.to_string())?;
+
+    if let Some(watchlist) = watchlist {
+        let watchlist: Watchlist = serde_cbor::from_slice(&watchlist).map_err(|e| e.to_string())?;
+
+        if watchlist.last_downsync.signed_duration_since(Utc::now()) < Duration::hours(3) {
+            return Ok(watchlist);
+        }
+    }
+
+    Ok(Watchlist {
+        last_downsync: Utc::now(),
+        list: api.sync_watchlist_full(None, &user.access_token).map_err(|e| e.to_string())?,
+    })
+}
 
 pub struct WatchlistList;
 
@@ -25,132 +46,100 @@ impl WatchlistList {
         let users = lock
             .get::<Database>()
             .ok_or_else(|| "Couldn't extract users".to_owned())?
-            .open_tree("users").map_err(|e| e.to_string())?;
+            .open_tree("users")
+            .map_err(|e| e.to_string())?;
 
         let user = users
             .get(msg.author.id.0.to_le_bytes())
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "You are not logged in".to_owned())?;
 
         drop(lock);
 
-        if let Some(inner) = user {
-            let user: User = serde_cbor::from_slice(&inner).map_err(|e| e.to_string())?;
+        let user: User = serde_cbor::from_slice(&user).map_err(|e| e.to_string())?;
 
-            let lock = ctx.data.read();
+        let lock = ctx.data.read();
 
-            let watchlists = lock.get::<Database>().ok_or_else(|| "Couldn't extract users".to_owned())?
-                .open_tree("watchlists").map_err(|e| e.to_string())?;
+        let watchlists = lock
+            .get::<Database>()
+            .ok_or_else(|| "Couldn't extract users".to_owned())?
+            .open_tree("watchlists")
+            .map_err(|e| e.to_string())?;
 
-            let watchlist_opt = watchlists.get(user.slug.as_bytes()).map_err(|e| e.to_string())?;
+        let watchlist = get_watchlist(watchlists, lock.get::<Trakt>().ok_or_else(|| "Couldn't extract API".to_owned())?, &user)?;
 
-            let mut watchlist: Watchlist;
+        drop(lock);
 
-            if let Some(wl) = watchlist_opt {
-                watchlist = serde_cbor::from_slice(&wl).map_err(|e| e.to_string())?;
+        let time = &watchlist.last_downsync;
 
-                if watchlist.last_downsync.signed_duration_since(Utc::now()) > Duration::hours(3) {
-                    let api = lock
-                        .get::<Trakt>()
-                        .ok_or_else(|| "Couldn't extract api".to_owned())?;
-
-                    watchlist =
-                        Watchlist {
-                            last_downsync: Utc::now(),
-                            list: api
-                                .sync_watchlist_full(None, &user.access_token)
-                                .map_err(|e| e.to_string())?,
-                        };
-
-                    watchlists.set(user.slug.as_bytes(), serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+        let message = watchlist
+            .list
+            .into_iter()
+            .map(|item| match item.item_type {
+                ListItemType::Movie => format!(
+                    ":movie_camera: [{}] {}",
+                    item.rank,
+                    item.movie.unwrap().title
+                ),
+                ListItemType::Show => {
+                    format!(":film_frames: [{}] {}", item.rank, item.show.unwrap().title)
                 }
-            } else {
-                let api = lock
-                    .get::<Trakt>()
-                    .ok_or_else(|| "Couldn't extract api".to_owned())?;
+                ListItemType::Season => format!(
+                    ":film_frames: [{}] {} Season {}",
+                    item.rank,
+                    item.show.unwrap().title,
+                    item.season.unwrap().number
+                ),
+                ListItemType::Episode => format!(
+                    ":film_frames: [{}] {}",
+                    item.rank.to_owned(),
+                    item.episode
+                        .as_ref()
+                        .unwrap()
+                        .title
+                        .to_owned()
+                        .unwrap_or_else(|| format!("Episode {}", item.episode.unwrap().number))
+                ),
+                ListItemType::Person => {
+                    format!(":mens: [{}] {}", item.rank, item.person.unwrap().name)
+                }
+            })
+            .collect::<Vec<String>>();
 
-                watchlist =
-                    Watchlist {
-                        last_downsync: Utc::now(),
-                        list: api
-                            .sync_watchlist_full(None, &user.access_token)
-                            .map_err(|e| e.to_string())?,
-                    };
+        let name = user
+            .name
+            .to_owned()
+            .unwrap_or_else(|| user.username.to_owned());
+        let username = user.username;
+        let avatar = user.avatar.unwrap_or_default();
 
-                watchlists.set(user.slug.as_bytes(), serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-            }
-
-            drop(lock);
-
-            let time = &watchlist.last_downsync;
-
-            let message = watchlist
-                .list
-                .into_iter()
-                .map(|item| match item.item_type {
-                    ListItemType::Movie => format!(
-                        ":movie_camera: [{}] {}",
-                        item.rank,
-                        item.movie.unwrap().title
-                    ),
-                    ListItemType::Show => {
-                        format!(":film_frames: [{}] {}", item.rank, item.show.unwrap().title)
-                    }
-                    ListItemType::Season => format!(
-                        ":film_frames: [{}] {} Season {}",
-                        item.rank,
-                        item.show.unwrap().title,
-                        item.season.unwrap().number
-                    ),
-                    ListItemType::Episode => format!(
-                        ":film_frames: [{}] {}",
-                        item.rank.to_owned(),
-                        item.episode
-                            .as_ref()
-                            .unwrap()
-                            .title
-                            .to_owned()
-                            .unwrap_or_else(|| format!("Episode {}", item.episode.unwrap().number))
-                    ),
-                    ListItemType::Person => {
-                        format!(":mens: [{}] {}", item.rank, item.person.unwrap().name)
-                    }
-                })
-                .collect::<Vec<String>>();
-
-            let name = user
-                .name
-                .to_owned()
-                .unwrap_or_else(|| user.username.to_owned());
-            let username = user.username;
-            let avatar = user.avatar.unwrap_or_default();
-
-            for i in 1..(message.len() / 20) + 2 {
-                msg.channel_id
-                    .send_message(&ctx.http, |m| {
-                        m.embed(|embed| {
-                            embed
-                                .title(":notepad_spiral: W A T C H L I S T")
-                                .color((237u8, 28u8, 36u8))
-                                .description(
-                                    message[((i - 1) * 20)..min(i * 20, message.len())].join("\n"),
-                                )
-                                .author(|author| {
-                                    author
-                                        .name(&name)
-                                        .url(&format!("https://trakt.tv/users/{}", &username))
-                                        .icon_url(&avatar)
-                                })
-                                .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
-                                .timestamp(time)
-                        })
+        for i in 1..(message.len() / 20) + 2 {
+            msg.channel_id
+                .send_message(&ctx.http, |m| {
+                    m.embed(|embed| {
+                        embed
+                            .title(":notepad_spiral: W A T C H L I S T")
+                            .color((237u8, 28u8, 36u8))
+                            .description(
+                                message[((i - 1) * 20)..min(i * 20, message.len())].join("\n"),
+                            )
+                            .author(|author| {
+                                author
+                                    .name(&name)
+                                    .url(&format!("https://trakt.tv/users/{}", &username))
+                                    .icon_url(&avatar)
+                            })
+                            .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
+                            .timestamp(time)
+                            .footer(|foot| {
+                                foot.text("Get refreshed when older than 3 hours")
+                            })
                     })
-                    .map_err(|e| e.to_string())?;
-            }
-
-            Ok(())
-        } else {
-            Err("You are not loggen in".to_owned())
+                })
+                .map_err(|e| e.to_string())?;
         }
+
+        Ok(())
     }
 }
 
@@ -182,7 +171,8 @@ impl WatchlistRandom {
         let users = lock
             .get::<Database>()
             .ok_or_else(|| "Couldn't extract users".to_owned())?
-            .open_tree("users").map_err(|e| e.to_string())?;
+            .open_tree("users")
+            .map_err(|e| e.to_string())?;
 
         let user = users
             .get(msg.author.id.0.to_le_bytes())
