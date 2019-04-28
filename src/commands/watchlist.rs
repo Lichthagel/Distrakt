@@ -11,11 +11,16 @@ use serenity::{
     model::channel::Message,
 };
 use sled::Tree;
-use std::sync::Arc;
-use std::{cmp::min, string::ToString};
+use std::{
+    sync::Arc,
+    cmp::min,
+    string::ToString,
+};
 use time::Duration;
-use trakt::models::{FullListItem, ListItemType};
-use trakt::TraktApi;
+use trakt::{
+    models::ListItemType,
+    TraktApi,
+};
 
 fn get_watchlist(
     watchlists: Arc<Tree>,
@@ -176,101 +181,99 @@ impl WatchlistRandom {
 
         let user = users
             .get(msg.author.id.0.to_le_bytes())
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "You are not logged in".to_owned())?;
 
         drop(lock);
 
-        if let Some(inner) = user {
-            let user: User = serde_cbor::from_slice(&inner).map_err(|e| e.to_string())?;
+        let user: User = serde_cbor::from_slice(&user).map_err(|e| e.to_string())?;
 
-            let lock = ctx.data.read();
+        let lock = ctx.data.read();
 
-            let api = lock
-                .get::<Trakt>()
-                .ok_or_else(|| "Couldn't extract api".to_owned())?;
+        let watchlists = lock.get::<Database>().ok_or_else(|| "Couldn't extract database".to_owned())?.open_tree("watchlists").map_err(|e| e.to_string())?;
 
-            let watchlist: Vec<FullListItem> = api
-                .sync_watchlist_full(None, &user.access_token)
-                .map_err(|e| e.to_string())?;
+        let api = lock
+            .get::<Trakt>()
+            .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
-            drop(lock);
+        let watchlist = get_watchlist(watchlists, api, &user)?;
 
-            let item = watchlist
-                .into_iter()
-                .choose(&mut thread_rng())
-                .ok_or_else(|| "Your watchlist is empty".to_owned())?;
+        drop(lock);
 
-            if item.item_type == ListItemType::Movie {
-                msg.channel_id
-                    .send_message(&ctx.http, |m| full_movie(item.movie.as_ref().unwrap(), m))
-                    .map_err(|e| e.to_string())?;
-                return Ok(());
-            } else if item.item_type == ListItemType::Show {
-                msg.channel_id
-                    .send_message(&ctx.http, |m| full_show(item.show.as_ref().unwrap(), m))
-                    .map_err(|e| e.to_string())?;
-                return Ok(());
-            }
+        let item = watchlist
+            .list
+            .into_iter()
+            .choose(&mut thread_rng())
+            .ok_or_else(|| "Your watchlist is empty".to_owned())?;
 
-            let message = match item.item_type {
-                ListItemType::Movie => format!(
-                    ":movie_camera: [{}] {}",
-                    item.rank,
-                    item.movie.unwrap().title
-                ),
-                ListItemType::Show => {
-                    format!(":film_frames: [{}] {}", item.rank, item.show.unwrap().title)
-                }
-                ListItemType::Season => format!(
-                    ":film_frames: [{}] {} Season {}",
-                    item.rank,
-                    item.show.unwrap().title,
-                    item.season.unwrap().number
-                ),
-                ListItemType::Episode => format!(
-                    ":film_frames: [{}] {}",
-                    item.rank.to_owned(),
-                    item.episode
-                        .as_ref()
-                        .unwrap()
-                        .title
-                        .to_owned()
-                        .unwrap_or_else(|| format!("Episode {}", item.episode.unwrap().number))
-                ),
-                ListItemType::Person => {
-                    format!(":mens: [{}] {}", item.rank, item.person.unwrap().name)
-                }
-            };
-
-            let name = user
-                .name
-                .to_owned()
-                .unwrap_or_else(|| user.username.to_owned());
-            let username = user.username;
-            let avatar = user.avatar.unwrap_or_default();
-
+        if item.item_type == ListItemType::Movie {
             msg.channel_id
-                .send_message(&ctx.http, |m| {
-                    m.embed(|embed| {
-                        embed
-                            .title(":notepad_spiral: W A T C H L I S T")
-                            .color((237u8, 28u8, 36u8))
-                            .description(message)
-                            .author(|author| {
-                                author
-                                    .name(&name)
-                                    .url(&format!("https://trakt.tv/users/{}", &username))
-                                    .icon_url(&avatar)
-                            })
-                            .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
-                    })
-                })
+                .send_message(&ctx.http, |m| full_movie(item.movie.as_ref().unwrap(), m))
                 .map_err(|e| e.to_string())?;
-
-            Ok(())
-        } else {
-            Err("You are not loggen in".to_owned())
+            return Ok(());
+        } else if item.item_type == ListItemType::Show {
+            msg.channel_id
+                .send_message(&ctx.http, |m| full_show(item.show.as_ref().unwrap(), m))
+                .map_err(|e| e.to_string())?;
+            return Ok(());
         }
+
+        let message = match item.item_type {
+            ListItemType::Movie => format!(
+                ":movie_camera: [{}] {}",
+                item.rank,
+                item.movie.unwrap().title
+            ),
+            ListItemType::Show => {
+                format!(":film_frames: [{}] {}", item.rank, item.show.unwrap().title)
+            }
+            ListItemType::Season => format!(
+                ":film_frames: [{}] {} Season {}",
+                item.rank,
+                item.show.unwrap().title,
+                item.season.unwrap().number
+            ),
+            ListItemType::Episode => format!(
+                ":film_frames: [{}] {}",
+                item.rank.to_owned(),
+                item.episode
+                    .as_ref()
+                    .unwrap()
+                    .title
+                    .to_owned()
+                    .unwrap_or_else(|| format!("Episode {}", item.episode.unwrap().number))
+            ),
+            ListItemType::Person => {
+                format!(":mens: [{}] {}", item.rank, item.person.unwrap().name)
+            }
+        };
+
+        let name = user
+            .name
+            .to_owned()
+            .unwrap_or_else(|| user.username.to_owned());
+        let username = user.username;
+        let avatar = user.avatar.unwrap_or_default();
+
+        msg.channel_id
+            .send_message(&ctx.http, |m| {
+                m.embed(|embed| {
+                    embed
+                        .title(":notepad_spiral: W A T C H L I S T")
+                        .color((237u8, 28u8, 36u8))
+                        .description(message)
+                        .author(|author| {
+                            author
+                                .name(&name)
+                                .url(&format!("https://trakt.tv/users/{}", &username))
+                                .icon_url(&avatar)
+                        })
+                        .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        Ok(())
     }
 }
 

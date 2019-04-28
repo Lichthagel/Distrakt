@@ -1,4 +1,4 @@
-use crate::wrappers::{Trakt, Database};
+use crate::wrappers::{Database, Trakt};
 use serenity::{
     framework::{standard::Args, standard::Command, standard::CommandError},
     model::channel::Message,
@@ -34,14 +34,15 @@ pub struct Db;
 impl Command for Db {
     fn execute(&self, ctx: &mut Context, _msg: &Message, _args: Args) -> Result<(), CommandError> {
         let lock = ctx.data.read();
-        let db = lock.get::<Database>().ok_or_else(|| "Couldn't extract DB".to_owned())?;
+        let db = lock
+            .get::<Database>()
+            .ok_or_else(|| "Couldn't extract DB".to_owned())?;
 
         for name in db.tree_names() {
             if name != b"users" {
                 db.drop_tree(&name).map_err(|e| e.to_string())?;
             }
         }
-
 
         Ok(())
     }
