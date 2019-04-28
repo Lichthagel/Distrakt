@@ -1,7 +1,7 @@
 use crate::{
     messages::{full_movie, full_show},
     models::User,
-    wrappers::{Trakt, Users},
+    wrappers::{Trakt, Database},
 };
 use rand::{seq::IteratorRandom, thread_rng};
 use serenity::{
@@ -18,8 +18,9 @@ impl WatchlistList {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         let lock = ctx.data.read();
         let users = lock
-            .get::<Users>()
-            .ok_or_else(|| "Couldn't extract users".to_owned())?;
+            .get::<Database>()
+            .ok_or_else(|| "Couldn't extract users".to_owned())?
+            .open_tree("users").map_err(|e| e.to_string())?;
 
         let user = users
             .get(msg.author.id.0.to_le_bytes())
@@ -137,8 +138,9 @@ impl WatchlistRandom {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         let lock = ctx.data.read();
         let users = lock
-            .get::<Users>()
-            .ok_or_else(|| "Couldn't extract users".to_owned())?;
+            .get::<Database>()
+            .ok_or_else(|| "Couldn't extract users".to_owned())?
+            .open_tree("users").map_err(|e| e.to_string())?;
 
         let user = users
             .get(msg.author.id.0.to_le_bytes())

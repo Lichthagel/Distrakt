@@ -1,4 +1,4 @@
-use crate::wrappers::{Trakt, Users};
+use crate::wrappers::{Trakt, Database};
 use serenity::{
     framework::{standard::Args, standard::Command, standard::CommandError},
     model::channel::Message,
@@ -14,11 +14,11 @@ impl Command for Shutdown {
 
         let mut lock = ctx.data.write();
 
-        if let Some(users) = lock.get::<Users>() {
+        if let Some(users) = lock.get::<Database>() {
             users.flush()?;
         };
 
-        lock.remove::<Users>();
+        lock.remove::<Database>();
         lock.remove::<Trakt>();
 
         ctx.shard.shutdown_clean();

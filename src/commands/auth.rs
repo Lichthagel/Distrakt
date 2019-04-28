@@ -1,6 +1,6 @@
 use crate::{
     models::User,
-    wrappers::{Trakt, Users},
+    wrappers::{Trakt, Database},
 };
 use chrono::{offset::TimeZone, Utc};
 use serenity::{
@@ -19,8 +19,9 @@ impl Login {
         {
             let lock = ctx.data.read();
             let users = lock
-                .get::<Users>()
-                .ok_or_else(|| "Couldn't extract users".to_owned())?;
+                .get::<Database>()
+                .ok_or_else(|| "Couldn't extract users".to_owned())?
+                .open_tree("users").map_err(|e| e.to_string())?;
 
             if users
                 .contains_key(msg.author.id.0.to_le_bytes())
@@ -112,8 +113,9 @@ impl Login {
         {
             let lock = ctx.data.read();
             let users = lock
-                .get::<Users>()
-                .ok_or_else(|| "Couldn't extract users".to_owned())?;
+                .get::<Database>()
+                .ok_or_else(|| "Couldn't extract users".to_owned())?
+                .open_tree("users").map_err(|e| e.to_string())?;
 
             users
                 .set(

@@ -11,7 +11,7 @@ use crate::commands::watchlist::{WatchlistList, WatchlistRandom};
 use crate::{
     commands::{auth::Login, owner::Shutdown},
     config::DistraktConfig,
-    wrappers::{Trakt, Users},
+    wrappers::{Trakt, Database},
 };
 use serenity::{
     framework::StandardFramework,
@@ -77,9 +77,9 @@ fn main() {
     }
 
     {
-        let db = Db::start_default("db/users").unwrap();
+        let db = Db::start_default("db").unwrap();
 
-        client.data.write().insert::<Users>(Users::new(db));
+        client.data.write().insert::<Database>(Database::new(db));
     }
 
     client.data.write().insert::<DistraktConfig>(conf);

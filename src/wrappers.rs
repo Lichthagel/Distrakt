@@ -24,19 +24,19 @@ impl Deref for Trakt {
     }
 }
 
-pub struct Users(Db);
+pub struct Database(Db);
 
-impl Users {
+impl Database {
     pub fn new(db: Db) -> Self {
         Self { 0: db }
     }
 }
 
-impl typemap::Key for Users {
+impl typemap::Key for Database {
     type Value = Self;
 }
 
-impl Deref for Users {
+impl Deref for Database {
     type Target = Db;
 
     fn deref(&self) -> &Self::Target {
