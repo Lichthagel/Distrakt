@@ -10,8 +10,7 @@ use serenity::{
 };
 use std::{thread, time::Duration as SleepDuration};
 use time::Duration;
-use trakt::error::Error;
-use trakt::models::AuthenticationTokenResponse;
+use trakt::{error::Error, models::AuthenticationTokenResponse};
 
 pub struct Login;
 
@@ -156,7 +155,7 @@ impl Command for Login {
                     })
                 })
                 .map(|_| ())
-                .map_err(|e| e.into()),
+                .map_err(Into::into),
             Err(e) => {
                 msg.author
                     .direct_message(&ctx, |m| {

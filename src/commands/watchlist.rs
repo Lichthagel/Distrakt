@@ -1,17 +1,15 @@
-use crate::messages::full_movie;
 use crate::{
+    messages::{full_movie, full_show},
     models::User,
     wrappers::{Trakt, Users},
 };
-use rand::seq::IteratorRandom;
-use rand::thread_rng;
+use rand::{seq::IteratorRandom, thread_rng};
 use serenity::{
     client::Context,
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
 };
-use std::cmp::min;
-use std::string::ToString;
+use std::{cmp::min, string::ToString};
 use trakt::models::{FullListItem, ListItemType};
 
 pub struct WatchlistList;
@@ -171,6 +169,11 @@ impl WatchlistRandom {
             if item.item_type == ListItemType::Movie {
                 msg.channel_id
                     .send_message(&ctx.http, |m| full_movie(item.movie.as_ref().unwrap(), m))
+                    .map_err(|e| e.to_string())?;
+                return Ok(());
+            } else if item.item_type == ListItemType::Show {
+                msg.channel_id
+                    .send_message(&ctx.http, |m| full_show(item.show.as_ref().unwrap(), m))
                     .map_err(|e| e.to_string())?;
                 return Ok(());
             }
