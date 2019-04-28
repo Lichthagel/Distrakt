@@ -6,6 +6,7 @@ pub struct DistraktConfig {
     pub discord_token: String,
     pub trakt_id: String,
     pub trakt_secret: String,
+    pub tmdb_key: String,
     pub owners: Vec<u64>,
 }
 

@@ -38,11 +38,7 @@ impl Command for Db {
             .get::<Database>()
             .ok_or_else(|| "Couldn't extract DB".to_owned())?;
 
-        for name in db.tree_names() {
-            if name != b"users" {
-                db.drop_tree(&name).map_err(|e| e.to_string())?;
-            }
-        }
+        db.drop_tree(b"watchlists").map_err(|e| e.to_string())?;
 
         Ok(())
     }
