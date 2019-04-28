@@ -1,6 +1,9 @@
 use crate::{
     messages::{full_movie, full_show},
-    models::User,
+    models::{
+        User,
+        Watchlist,
+    },
     wrappers::{Trakt, Database},
 };
 use rand::{seq::IteratorRandom, thread_rng};
@@ -11,8 +14,8 @@ use serenity::{
 };
 use std::{cmp::min, string::ToString};
 use trakt::models::{FullListItem, ListItemType};
-use crate::models::Watchlist;
 use chrono::Utc;
+use time::Duration;
 
 pub struct WatchlistList;
 
@@ -40,10 +43,26 @@ impl WatchlistList {
 
             let watchlist_opt = watchlists.get(user.slug.as_bytes()).map_err(|e| e.to_string())?;
 
-            let watchlist: Watchlist;
+            let mut watchlist: Watchlist;
 
             if let Some(wl) = watchlist_opt {
                 watchlist = serde_cbor::from_slice(&wl).map_err(|e| e.to_string())?;
+
+                if watchlist.last_downsync.signed_duration_since(Utc::now()) > Duration::hours(3) {
+                    let api = lock
+                        .get::<Trakt>()
+                        .ok_or_else(|| "Couldn't extract api".to_owned())?;
+
+                    watchlist =
+                        Watchlist {
+                            last_downsync: Utc::now(),
+                            list: api
+                                .sync_watchlist_full(None, &user.access_token)
+                                .map_err(|e| e.to_string())?,
+                        };
+
+                    watchlists.set(user.slug.as_bytes(), serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+                }
             } else {
                 let api = lock
                     .get::<Trakt>()
@@ -61,6 +80,8 @@ impl WatchlistList {
             }
 
             drop(lock);
+
+            let time = &watchlist.last_downsync;
 
             let message = watchlist
                 .list
@@ -120,6 +141,7 @@ impl WatchlistList {
                                         .icon_url(&avatar)
                                 })
                                 .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
+                                .timestamp(time)
                         })
                     })
                     .map_err(|e| e.to_string())?;
