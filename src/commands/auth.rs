@@ -120,7 +120,7 @@ impl Login {
             users
                 .set(
                     msg.author.id.0.to_le_bytes(),
-                    bincode::serialize(&User {
+                    serde_cbor::to_vec(&User {
                         discord_id: msg.author.id.0,
                         access_token: tokens.access_token,
                         refresh_token: tokens.refresh_token,

@@ -11,6 +11,8 @@ use serenity::{
 };
 use std::{cmp::min, string::ToString};
 use trakt::models::{FullListItem, ListItemType};
+use crate::models::Watchlist;
+use chrono::Utc;
 
 pub struct WatchlistList;
 
@@ -29,21 +31,39 @@ impl WatchlistList {
         drop(lock);
 
         if let Some(inner) = user {
-            let user: User = bincode::deserialize(&inner).map_err(|e| e.to_string())?;
+            let user: User = serde_cbor::from_slice(&inner).map_err(|e| e.to_string())?;
 
             let lock = ctx.data.read();
 
-            let api = lock
-                .get::<Trakt>()
-                .ok_or_else(|| "Couldn't extract api".to_owned())?;
+            let watchlists = lock.get::<Database>().ok_or_else(|| "Couldn't extract users".to_owned())?
+                .open_tree("watchlists").map_err(|e| e.to_string())?;
 
-            let watchlist = api
-                .sync_watchlist(None, &user.access_token)
-                .map_err(|e| e.to_string())?;
+            let watchlist_opt = watchlists.get(user.slug.as_bytes()).map_err(|e| e.to_string())?;
+
+            let watchlist: Watchlist;
+
+            if let Some(wl) = watchlist_opt {
+                watchlist = serde_cbor::from_slice(&wl).map_err(|e| e.to_string())?;
+            } else {
+                let api = lock
+                    .get::<Trakt>()
+                    .ok_or_else(|| "Couldn't extract api".to_owned())?;
+
+                watchlist =
+                    Watchlist {
+                        last_downsync: Utc::now(),
+                        list: api
+                            .sync_watchlist_full(None, &user.access_token)
+                            .map_err(|e| e.to_string())?,
+                    };
+
+                watchlists.set(user.slug.as_bytes(), serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            }
 
             drop(lock);
 
             let message = watchlist
+                .list
                 .into_iter()
                 .map(|item| match item.item_type {
                     ListItemType::Movie => format!(
@@ -149,7 +169,7 @@ impl WatchlistRandom {
         drop(lock);
 
         if let Some(inner) = user {
-            let user: User = bincode::deserialize(&inner).map_err(|e| e.to_string())?;
+            let user: User = serde_cbor::from_slice(&inner).map_err(|e| e.to_string())?;
 
             let lock = ctx.data.read();
 

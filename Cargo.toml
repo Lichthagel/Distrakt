@@ -8,7 +8,7 @@ edition = "2018"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
-bincode = "1.1"
+serde_cbor = "0.9"
 typemap = "0.3"
 chrono = "0.4"
 time = "0.1"
@@ -22,6 +22,6 @@ rev = "1c9ce11"
 
 [dependencies.trakt]
 git = "https://github.com/Lichthagel/trakt-rust"
-rev = "090dfb7"
+rev = "25eaf96"
 default-features = false
 features = ["sync", "async"]

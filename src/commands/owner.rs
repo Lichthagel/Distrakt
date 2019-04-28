@@ -28,3 +28,21 @@ impl Command for Shutdown {
         process::exit(0);
     }
 }
+
+pub struct Db;
+
+impl Command for Db {
+    fn execute(&self, ctx: &mut Context, _msg: &Message, _args: Args) -> Result<(), CommandError> {
+        let lock = ctx.data.read();
+        let db = lock.get::<Database>().ok_or("Couldn't extract DB".to_owned())?;
+
+        for name in db.tree_names() {
+            if name != "users".as_bytes() {
+                db.drop_tree(&name).map_err(|e| e.to_string())?;
+            }
+        }
+
+
+        Ok(())
+    }
+}

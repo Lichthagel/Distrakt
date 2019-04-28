@@ -60,6 +60,10 @@ fn main() {
                     .cmd(Shutdown)
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
+            .command("db", |c| {
+                c.owners_only(true)
+                    .cmd(crate::commands::owner::Db)
+            })
             .command("login", |c| c.cmd(Login))
             .group("watchlist", |g| {
                 g.prefix("watchlist")
