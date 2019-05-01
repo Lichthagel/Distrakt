@@ -1794,7 +1794,6 @@ version = "0.0.2"
 source = "git+https://github.com/Lichthagel/trakt-rust?rev=25eaf96#25eaf9662ea8c6fb633009de47fe9ee73fcf74a3"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures 0.1.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashbrown 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -22,8 +22,6 @@ rev = "1c9ce11"
 [dependencies.trakt]
 git = "https://github.com/Lichthagel/trakt-rust"
 rev = "25eaf96"
-default-features = false
-features = ["sync", "async"]
 
 [dependencies.postgres]
 version = "0.15"

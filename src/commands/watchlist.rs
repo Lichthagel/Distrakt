@@ -1,30 +1,24 @@
 use crate::{
     messages::{full_movie, full_show},
-    models::{Watchlist},
+    models::Watchlist,
     wrappers::Wrapper,
 };
 use chrono::Utc;
+use postgres::Connection;
 use rand::{seq::IteratorRandom, thread_rng};
 use serenity::{
     client::Context,
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
 };
-use sled::{Tree, Db};
+use sled::{Db, Tree};
 use std::{
-    sync::{
-        Arc,
-        Mutex,
-    },
     cmp::min,
     string::ToString,
+    sync::{Arc, Mutex},
 };
 use time::Duration;
-use trakt::{
-    models::ListItemType,
-    TraktApi,
-};
-use postgres::Connection;
+use trakt::{models::ListItemType, TraktApi};
 
 fn get_watchlist(
     watchlists: Arc<Tree>,
@@ -44,10 +38,17 @@ fn get_watchlist(
 
     let watchlist = Watchlist {
         last_downsync: Utc::now(),
-        list: api.sync_watchlist_full(None, access_token).map_err(|e| e.to_string())?,
+        list: api
+            .sync_watchlist_full(None, access_token)
+            .map_err(|e| e.to_string())?,
     };
 
-    watchlists.set(slug, serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    watchlists
+        .set(
+            slug,
+            serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
 
     Ok(watchlist)
 }
@@ -57,7 +58,9 @@ pub struct WatchlistList;
 impl WatchlistList {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         let lock = ctx.data.read();
-        let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+        let db = lock
+            .get::<Wrapper<Mutex<Connection>>>()
+            .ok_or_else(|| "Couldn't get database")?;
         let db = db.lock().map_err(|e| e.to_string())?;
 
         let res = db.query("SELECT slug, access_token, name, username, avatar FROM users WHERE discord_id = $1", &[&(msg.author.id.0 as i64)]).map_err(|e| e.to_string())?;
@@ -65,7 +68,7 @@ impl WatchlistList {
         drop(db);
         drop(lock);
 
-        if res.len() == 0 {
+        if res.is_empty() {
             return Err("You are not logged in".to_owned());
         }
 
@@ -79,7 +82,13 @@ impl WatchlistList {
             .open_tree("watchlists")
             .map_err(|e| e.to_string())?;
 
-        let watchlist = get_watchlist(watchlists, lock.get::<Wrapper<TraktApi>>().ok_or_else(|| "Couldn't extract API".to_owned())?, &res.get::<&str, String>("slug"), &res.get::<&str, String>("access_token"))?;
+        let watchlist = get_watchlist(
+            watchlists,
+            lock.get::<Wrapper<TraktApi>>()
+                .ok_or_else(|| "Couldn't extract API".to_owned())?,
+            &res.get::<&str, String>("slug"),
+            &res.get::<&str, String>("access_token"),
+        )?;
 
         drop(lock);
 
@@ -119,10 +128,13 @@ impl WatchlistList {
             })
             .collect::<Vec<String>>();
 
-        let name = res.get::<&str, Option<String>>("name")
+        let name = res
+            .get::<&str, Option<String>>("name")
             .unwrap_or_else(|| res.get("username"));
         let username: String = res.get("username");
-        let avatar = res.get::<&str, Option<String>>("avatar").unwrap_or_default();
+        let avatar = res
+            .get::<&str, Option<String>>("avatar")
+            .unwrap_or_default();
 
         for i in 1..(message.len() / 20) + 2 {
             msg.channel_id
@@ -142,9 +154,7 @@ impl WatchlistList {
                             })
                             .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
                             .timestamp(time)
-                            .footer(|foot| {
-                                foot.text("Gets refreshed when older than 3 hours")
-                            })
+                            .footer(|foot| foot.text("Gets refreshed when older than 3 hours"))
                     })
                 })
                 .map_err(|e| e.to_string())?;
@@ -179,7 +189,9 @@ pub struct WatchlistRandom;
 impl WatchlistRandom {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         let lock = ctx.data.read();
-        let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+        let db = lock
+            .get::<Wrapper<Mutex<Connection>>>()
+            .ok_or_else(|| "Couldn't get database")?;
         let db = db.lock().map_err(|e| e.to_string())?;
 
         let res = db.query("SELECT slug, access_token, name, username, avatar FROM users WHERE discord_id = $1", &[&(msg.author.id.0 as i64)]).map_err(|e| e.to_string())?;
@@ -187,7 +199,7 @@ impl WatchlistRandom {
         drop(db);
         drop(lock);
 
-        if res.len() == 0 {
+        if res.is_empty() {
             return Err("You are not logged in".to_owned());
         }
 
@@ -195,13 +207,22 @@ impl WatchlistRandom {
 
         let lock = ctx.data.read();
 
-        let watchlists = lock.get::<Wrapper<Db>>().ok_or_else(|| "Couldn't get watchlists".to_owned())?.open_tree("watchlists").map_err(|e| e.to_string())?;
+        let watchlists = lock
+            .get::<Wrapper<Db>>()
+            .ok_or_else(|| "Couldn't get watchlists".to_owned())?
+            .open_tree("watchlists")
+            .map_err(|e| e.to_string())?;
 
         let api = lock
             .get::<Wrapper<TraktApi>>()
             .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
-        let watchlist = get_watchlist(watchlists, api, &res.get::<&str, String>("slug"), &res.get::<&str, String>("access_token"))?;
+        let watchlist = get_watchlist(
+            watchlists,
+            api,
+            &res.get::<&str, String>("slug"),
+            &res.get::<&str, String>("access_token"),
+        )?;
 
         drop(lock);
 
@@ -248,15 +269,16 @@ impl WatchlistRandom {
                     .to_owned()
                     .unwrap_or_else(|| format!("Episode {}", item.episode.unwrap().number))
             ),
-            ListItemType::Person => {
-                format!(":mens: [{}] {}", item.rank, item.person.unwrap().name)
-            }
+            ListItemType::Person => format!(":mens: [{}] {}", item.rank, item.person.unwrap().name),
         };
 
-        let name = res.get::<&str, Option<String>>("name")
+        let name = res
+            .get::<&str, Option<String>>("name")
             .unwrap_or_else(|| res.get("username"));
         let username: String = res.get("username");
-        let avatar = res.get::<&str, Option<String>>("avatar").unwrap_or_default();
+        let avatar = res
+            .get::<&str, Option<String>>("avatar")
+            .unwrap_or_default();
 
         msg.channel_id
             .send_message(&ctx.http, |m| {

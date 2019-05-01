@@ -1,17 +1,15 @@
-use crate::{
-    wrappers::Wrapper,
-};
+use crate::wrappers::Wrapper;
 use chrono::{offset::TimeZone, Utc};
+use postgres::Connection;
 use serenity::{
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
     prelude::Context,
 };
+use std::sync::Mutex;
 use std::{thread, time::Duration as SleepDuration};
 use time::Duration;
 use trakt::{error::Error, models::AuthenticationTokenResponse, TraktApi};
-use postgres::Connection;
-use std::sync::Mutex;
 
 pub struct Login;
 
@@ -19,12 +17,19 @@ impl Login {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         {
             let lock = ctx.data.read();
-            let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+            let db = lock
+                .get::<Wrapper<Mutex<Connection>>>()
+                .ok_or_else(|| "Couldn't get database")?;
             let db = db.lock().map_err(|e| e.to_string())?;
 
-            let res = db.query("SELECT * FROM users WHERE discord_id = $1", &[&(msg.author.id.0 as i64)]).map_err(|e| e.to_string())?;
+            let res = db
+                .query(
+                    "SELECT * FROM users WHERE discord_id = $1",
+                    &[&(msg.author.id.0 as i64)],
+                )
+                .map_err(|e| e.to_string())?;
 
-            if res.len() > 0 {
+            if !res.is_empty() {
                 return Err("You are already logged in".to_owned());
             }
         }
@@ -110,14 +115,16 @@ impl Login {
 
         {
             let lock = ctx.data.read();
-            let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+            let db = lock
+                .get::<Wrapper<Mutex<Connection>>>()
+                .ok_or_else(|| "Couldn't get database")?;
             let db = db.lock().map_err(|e| e.to_string())?;
 
             db.execute("INSERT INTO users (discord_id, access_token, refresh_token, expires, slug, username, name, private, vip, cover_image, avatar, joined_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);", &[
                 &(msg.author.id.0 as i64),
                 &tokens.access_token,
                 &tokens.refresh_token,
-                &(Utc.timestamp(tokens.created_at as i64, 0).naive_utc() + Duration::seconds(tokens.expires_in as i64)),
+                &(Utc.timestamp(tokens.created_at as i64, 0).naive_utc() + Duration::seconds(i64::from(tokens.expires_in))),
                 &settings.user.ids.slug.unwrap(),
                 &settings.user.username,
                 &settings.user.name,
