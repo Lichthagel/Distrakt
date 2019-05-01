@@ -1,7 +1,7 @@
 use crate::{
     messages::{full_movie, full_show},
-    models::{User, Watchlist},
-    wrappers::{Database, Trakt},
+    models::{Watchlist},
+    wrappers::Wrapper,
 };
 use chrono::Utc;
 use rand::{seq::IteratorRandom, thread_rng};
@@ -10,9 +10,12 @@ use serenity::{
     framework::standard::{Args, Command, CommandError},
     model::channel::Message,
 };
-use sled::Tree;
+use sled::{Tree, Db};
 use std::{
-    sync::Arc,
+    sync::{
+        Arc,
+        Mutex,
+    },
     cmp::min,
     string::ToString,
 };
@@ -21,13 +24,15 @@ use trakt::{
     models::ListItemType,
     TraktApi,
 };
+use postgres::Connection;
 
 fn get_watchlist(
     watchlists: Arc<Tree>,
     api: &TraktApi,
-    user: &User,
+    slug: &str,
+    access_token: &str,
 ) -> Result<Watchlist, String> {
-    let watchlist = watchlists.get(&user.slug).map_err(|e| e.to_string())?;
+    let watchlist = watchlists.get(slug).map_err(|e| e.to_string())?;
 
     if let Some(watchlist) = watchlist {
         let watchlist: Watchlist = serde_cbor::from_slice(&watchlist).map_err(|e| e.to_string())?;
@@ -37,10 +42,14 @@ fn get_watchlist(
         }
     }
 
-    Ok(Watchlist {
+    let watchlist = Watchlist {
         last_downsync: Utc::now(),
-        list: api.sync_watchlist_full(None, &user.access_token).map_err(|e| e.to_string())?,
-    })
+        list: api.sync_watchlist_full(None, access_token).map_err(|e| e.to_string())?,
+    };
+
+    watchlists.set(slug, serde_cbor::to_vec(&watchlist).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+
+    Ok(watchlist)
 }
 
 pub struct WatchlistList;
@@ -48,30 +57,29 @@ pub struct WatchlistList;
 impl WatchlistList {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         let lock = ctx.data.read();
-        let users = lock
-            .get::<Database>()
-            .ok_or_else(|| "Couldn't extract users".to_owned())?
-            .open_tree("users")
-            .map_err(|e| e.to_string())?;
+        let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+        let db = db.lock().map_err(|e| e.to_string())?;
 
-        let user = users
-            .get(msg.author.id.0.to_le_bytes())
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "You are not logged in".to_owned())?;
+        let res = db.query("SELECT slug, access_token, name, username, avatar FROM users WHERE discord_id = $1", &[&(msg.author.id.0 as i64)]).map_err(|e| e.to_string())?;
 
+        drop(db);
         drop(lock);
 
-        let user: User = serde_cbor::from_slice(&user).map_err(|e| e.to_string())?;
+        if res.len() == 0 {
+            return Err("You are not logged in".to_owned());
+        }
+
+        let res = res.get(0);
 
         let lock = ctx.data.read();
 
         let watchlists = lock
-            .get::<Database>()
-            .ok_or_else(|| "Couldn't extract users".to_owned())?
+            .get::<Wrapper<Db>>()
+            .ok_or_else(|| "Couldn't get watchlists".to_owned())?
             .open_tree("watchlists")
             .map_err(|e| e.to_string())?;
 
-        let watchlist = get_watchlist(watchlists, lock.get::<Trakt>().ok_or_else(|| "Couldn't extract API".to_owned())?, &user)?;
+        let watchlist = get_watchlist(watchlists, lock.get::<Wrapper<TraktApi>>().ok_or_else(|| "Couldn't extract API".to_owned())?, &res.get::<&str, String>("slug"), &res.get::<&str, String>("access_token"))?;
 
         drop(lock);
 
@@ -111,12 +119,10 @@ impl WatchlistList {
             })
             .collect::<Vec<String>>();
 
-        let name = user
-            .name
-            .to_owned()
-            .unwrap_or_else(|| user.username.to_owned());
-        let username = user.username;
-        let avatar = user.avatar.unwrap_or_default();
+        let name = res.get::<&str, Option<String>>("name")
+            .unwrap_or_else(|| res.get("username"));
+        let username: String = res.get("username");
+        let avatar = res.get::<&str, Option<String>>("avatar").unwrap_or_default();
 
         for i in 1..(message.len() / 20) + 2 {
             msg.channel_id
@@ -137,7 +143,7 @@ impl WatchlistList {
                             .url(&format!("https://trakt.tv/users/{}/watchlist", &username))
                             .timestamp(time)
                             .footer(|foot| {
-                                foot.text("Get refreshed when older than 3 hours")
+                                foot.text("Gets refreshed when older than 3 hours")
                             })
                     })
                 })
@@ -173,30 +179,29 @@ pub struct WatchlistRandom;
 impl WatchlistRandom {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         let lock = ctx.data.read();
-        let users = lock
-            .get::<Database>()
-            .ok_or_else(|| "Couldn't extract users".to_owned())?
-            .open_tree("users")
-            .map_err(|e| e.to_string())?;
+        let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+        let db = db.lock().map_err(|e| e.to_string())?;
 
-        let user = users
-            .get(msg.author.id.0.to_le_bytes())
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "You are not logged in".to_owned())?;
+        let res = db.query("SELECT slug, access_token, name, username, avatar FROM users WHERE discord_id = $1", &[&(msg.author.id.0 as i64)]).map_err(|e| e.to_string())?;
 
+        drop(db);
         drop(lock);
 
-        let user: User = serde_cbor::from_slice(&user).map_err(|e| e.to_string())?;
+        if res.len() == 0 {
+            return Err("You are not logged in".to_owned());
+        }
+
+        let res = res.get(0);
 
         let lock = ctx.data.read();
 
-        let watchlists = lock.get::<Database>().ok_or_else(|| "Couldn't extract database".to_owned())?.open_tree("watchlists").map_err(|e| e.to_string())?;
+        let watchlists = lock.get::<Wrapper<Db>>().ok_or_else(|| "Couldn't get watchlists".to_owned())?.open_tree("watchlists").map_err(|e| e.to_string())?;
 
         let api = lock
-            .get::<Trakt>()
+            .get::<Wrapper<TraktApi>>()
             .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
-        let watchlist = get_watchlist(watchlists, api, &user)?;
+        let watchlist = get_watchlist(watchlists, api, &res.get::<&str, String>("slug"), &res.get::<&str, String>("access_token"))?;
 
         drop(lock);
 
@@ -248,12 +253,10 @@ impl WatchlistRandom {
             }
         };
 
-        let name = user
-            .name
-            .to_owned()
-            .unwrap_or_else(|| user.username.to_owned());
-        let username = user.username;
-        let avatar = user.avatar.unwrap_or_default();
+        let name = res.get::<&str, Option<String>>("name")
+            .unwrap_or_else(|| res.get("username"));
+        let username: String = res.get("username");
+        let avatar = res.get::<&str, Option<String>>("avatar").unwrap_or_default();
 
         msg.channel_id
             .send_message(&ctx.http, |m| {

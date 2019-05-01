@@ -7,11 +7,14 @@ mod messages;
 mod models;
 mod wrappers;
 
-use crate::commands::watchlist::{WatchlistList, WatchlistRandom};
 use crate::{
-    commands::{auth::Login, owner::Shutdown},
+    commands::{
+        watchlist::{WatchlistList, WatchlistRandom},
+        auth::Login,
+        owner::Shutdown,
+    },
     config::DistraktConfig,
-    wrappers::{Trakt, Database},
+    wrappers::Wrapper,
 };
 use serenity::{
     framework::StandardFramework,
@@ -24,6 +27,9 @@ use serenity::{
     Client,
 };
 use sled::Db;
+use trakt::TraktApi;
+use postgres::{Connection, TlsMode};
+use std::sync::Mutex;
 
 struct Handler;
 
@@ -60,9 +66,9 @@ fn main() {
                     .cmd(Shutdown)
                     .before(|ctx, msg| msg.reply(ctx, "shutting down").is_ok())
             })
-            .command("db", |c| {
+            .command("clearcache", |c| {
                 c.owners_only(true)
-                    .cmd(crate::commands::owner::Db)
+                    .cmd(crate::commands::owner::ClearCache)
             })
             .command("login", |c| c.cmd(Login))
             .group("watchlist", |g| {
@@ -73,17 +79,36 @@ fn main() {
     );
 
     {
-        let api = Trakt::new(conf.trakt_id.clone(), Some(conf.trakt_secret.clone()));
+        let api = TraktApi::new(conf.trakt_id.clone(), Some(conf.trakt_secret.clone()));
 
-        let mut data = client.data.write();
-
-        data.insert::<Trakt>(api);
+        client.data.write().insert::<Wrapper<TraktApi>>(Wrapper::new(api));
     }
 
     {
         let db = Db::start_default("db").unwrap();
 
-        client.data.write().insert::<Database>(Database::new(db));
+        client.data.write().insert::<Wrapper<Db>>(Wrapper::new(db));
+    }
+
+    {
+        let conn = Connection::connect("postgres://postgres@localhost:5432", TlsMode::None).unwrap();
+
+        conn.execute("CREATE TABLE IF NOT EXISTS users (\
+        discord_id BIGINT PRIMARY KEY,\
+        access_token TEXT,\
+        refresh_token TEXT,\
+        expires TIMESTAMP,\
+        slug TEXT,\
+        username TEXT,\
+        name TEXT,\
+        private BOOLEAN,\
+        vip BOOLEAN,\
+        cover_image TEXT,\
+        avatar TEXT,\
+        joined_at TIMESTAMP\
+        );", &[]).unwrap();
+
+        client.data.write().insert::<Wrapper<Mutex<Connection>>>(Wrapper::new(Mutex::new(conn)));
     }
 
     client.data.write().insert::<DistraktConfig>(conf);

@@ -1,43 +1,21 @@
-use sled::Db;
 use std::ops::Deref;
-use trakt::TraktApi;
 
-pub struct Trakt(TraktApi<'static>);
+pub struct Wrapper<T>(T);
 
-impl Trakt {
-    pub fn new(client_id: String, client_secret: Option<String>) -> Self {
+impl<T> Wrapper<T> {
+    pub fn new(content: T) -> Self {
         Self {
-            0: TraktApi::new(client_id, client_secret),
+            0: content
         }
     }
 }
 
-impl typemap::Key for Trakt {
-    type Value = Self;
+impl<T: 'static> typemap::Key for Wrapper<T> {
+    type Value = Wrapper<T>;
 }
 
-impl Deref for Trakt {
-    type Target = TraktApi<'static>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct Database(Db);
-
-impl Database {
-    pub fn new(db: Db) -> Self {
-        Self { 0: db }
-    }
-}
-
-impl typemap::Key for Database {
-    type Value = Self;
-}
-
-impl Deref for Database {
-    type Target = Db;
+impl<T> Deref for Wrapper<T> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.0

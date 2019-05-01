@@ -1,6 +1,5 @@
 use crate::{
-    models::User,
-    wrappers::{Trakt, Database},
+    wrappers::Wrapper,
 };
 use chrono::{offset::TimeZone, Utc};
 use serenity::{
@@ -10,7 +9,9 @@ use serenity::{
 };
 use std::{thread, time::Duration as SleepDuration};
 use time::Duration;
-use trakt::{error::Error, models::AuthenticationTokenResponse};
+use trakt::{error::Error, models::AuthenticationTokenResponse, TraktApi};
+use postgres::Connection;
+use std::sync::Mutex;
 
 pub struct Login;
 
@@ -18,15 +19,12 @@ impl Login {
     fn run(ctx: &mut Context, msg: &Message) -> Result<(), String> {
         {
             let lock = ctx.data.read();
-            let users = lock
-                .get::<Database>()
-                .ok_or_else(|| "Couldn't extract users".to_owned())?
-                .open_tree("users").map_err(|e| e.to_string())?;
+            let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+            let db = db.lock().map_err(|e| e.to_string())?;
 
-            if users
-                .contains_key(msg.author.id.0.to_le_bytes())
-                .map_err(|e| e.to_string())?
-            {
+            let res = db.query("SELECT * FROM users WHERE discord_id = $1", &[&(msg.author.id.0 as i64)]).map_err(|e| e.to_string())?;
+
+            if res.len() > 0 {
                 return Err("You are already logged in".to_owned());
             }
         }
@@ -35,7 +33,7 @@ impl Login {
         {
             let lock = ctx.data.read();
             let api = lock
-                .get::<Trakt>()
+                .get::<Wrapper<TraktApi>>()
                 .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
             code = api.oauth_device_code().map_err(|e| e.to_string())?
@@ -67,7 +65,7 @@ impl Login {
 
                 let lock = ctx.data.read();
                 let api = lock
-                    .get::<Trakt>()
+                    .get::<Wrapper<TraktApi>>()
                     .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
                 let res = api.oauth_device_token(&code.device_code);
@@ -102,7 +100,7 @@ impl Login {
         {
             let lock = ctx.data.read();
             let api = lock
-                .get::<Trakt>()
+                .get::<Wrapper<TraktApi>>()
                 .ok_or_else(|| "Couldn't extract api".to_owned())?;
 
             settings = api
@@ -112,32 +110,23 @@ impl Login {
 
         {
             let lock = ctx.data.read();
-            let users = lock
-                .get::<Database>()
-                .ok_or_else(|| "Couldn't extract users".to_owned())?
-                .open_tree("users").map_err(|e| e.to_string())?;
+            let db = lock.get::<Wrapper<Mutex<Connection>>>().ok_or_else(|| "Couldn't get database")?;
+            let db = db.lock().map_err(|e| e.to_string())?;
 
-            users
-                .set(
-                    msg.author.id.0.to_le_bytes(),
-                    serde_cbor::to_vec(&User {
-                        discord_id: msg.author.id.0,
-                        access_token: tokens.access_token,
-                        refresh_token: tokens.refresh_token,
-                        expires: Utc.timestamp(tokens.created_at as i64, 0).naive_utc()
-                            + Duration::seconds(i64::from(tokens.expires_in)),
-                        slug: settings.user.ids.slug.unwrap(),
-                        username: settings.user.username,
-                        name: settings.user.name,
-                        private: settings.user.private,
-                        vip: settings.user.vip,
-                        cover_image: settings.account.cover_image,
-                        avatar: settings.user.images.map(|i| i.avatar.full),
-                        joined_at: settings.user.joined_at.map(|d| d.naive_utc()),
-                    })
-                    .map_err(|e| e.to_string())?,
-                )
-                .map_err(|e| e.to_string())?;
+            db.execute("INSERT INTO users (discord_id, access_token, refresh_token, expires, slug, username, name, private, vip, cover_image, avatar, joined_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);", &[
+                &(msg.author.id.0 as i64),
+                &tokens.access_token,
+                &tokens.refresh_token,
+                &(Utc.timestamp(tokens.created_at as i64, 0).naive_utc() + Duration::seconds(tokens.expires_in as i64)),
+                &settings.user.ids.slug.unwrap(),
+                &settings.user.username,
+                &settings.user.name,
+                &settings.user.private,
+                &settings.user.vip,
+                &settings.account.cover_image,
+                &settings.user.images.map(|i| i.avatar.full),
+                &settings.user.joined_at.map(|d| d.naive_utc())
+            ]).map_err(|e| e.to_string())?;
         }
 
         Ok(())

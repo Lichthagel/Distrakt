@@ -1,10 +1,17 @@
-use crate::wrappers::{Database, Trakt};
 use serenity::{
     framework::{standard::Args, standard::Command, standard::CommandError},
     model::channel::Message,
     prelude::Context,
 };
-use std::{process, thread, time::Duration};
+use std::{
+    process,
+    thread,
+    time::Duration,
+    sync::Mutex
+};
+use crate::wrappers::Wrapper;
+use trakt::TraktApi;
+use postgres::Connection;
 
 pub struct Shutdown;
 
@@ -14,12 +21,13 @@ impl Command for Shutdown {
 
         let mut lock = ctx.data.write();
 
-        if let Some(users) = lock.get::<Database>() {
-            users.flush()?;
+        if let Some(cache) = lock.get::<Wrapper<sled::Db>>() {
+            cache.flush()?;
         };
 
-        lock.remove::<Database>();
-        lock.remove::<Trakt>();
+        lock.remove::<Wrapper<ClearCache>>();
+        lock.remove::<Wrapper<TraktApi>>();
+        lock.remove::<Wrapper<Mutex<Connection>>>();
 
         ctx.shard.shutdown_clean();
 
@@ -29,16 +37,16 @@ impl Command for Shutdown {
     }
 }
 
-pub struct Db;
+pub struct ClearCache;
 
-impl Command for Db {
+impl Command for ClearCache {
     fn execute(&self, ctx: &mut Context, _msg: &Message, _args: Args) -> Result<(), CommandError> {
         let lock = ctx.data.read();
         let db = lock
-            .get::<Database>()
+            .get::<Wrapper<sled::Db>>()
             .ok_or_else(|| "Couldn't extract DB".to_owned())?;
 
-        db.drop_tree(b"watchlists").map_err(|e| e.to_string())?;
+        db.clear()?;
 
         Ok(())
     }
